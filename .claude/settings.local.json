@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node:*)",
+      "Bash(npm --version)",
+      "Bash(npx @react-native-community/cli:*)",
+      "Bash(npx react-native:*)",
+      "Bash(npm install:*)",
+      "Bash(ls:*)",
+      "Bash(pod install:*)",
+      "Bash(sudo gem install:*)",
+      "Bash(mkdir:*)",
+      "Bash(npx create-expo-app:*)",
+      "Bash(npx expo install:*)",
+      "Bash(cp:*)",
+      "Bash(npx expo:*)",
+      "Bash(grep:*)"
+    ],
+    "deny": []
+  }
+}
