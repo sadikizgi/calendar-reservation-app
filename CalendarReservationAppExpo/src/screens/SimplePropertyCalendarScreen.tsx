@@ -646,6 +646,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
         current={`${item.year}-${String(item.month).padStart(2, '0')}-01`}
         onDayPress={onDayPress}
         markedDates={markedDates}
+        minDate={new Date().toISOString().split('T')[0]}
         hideArrows
         hideExtraDays
         disableMonthChange

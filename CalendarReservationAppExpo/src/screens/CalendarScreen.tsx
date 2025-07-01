@@ -6,6 +6,9 @@ import {
   TouchableOpacity,
   FlatList,
   Dimensions,
+  Modal,
+  ScrollView,
+  Alert,
 } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { useFocusEffect } from '@react-navigation/native';
@@ -23,6 +26,11 @@ interface CalendarScreenProps {
 const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
   const [properties, setProperties] = useState<Property[]>([]);
   const [reservations, setReservations] = useState<Reservation[]>([]);
+  const [showAvailabilitySearch, setShowAvailabilitySearch] = useState(false);
+  const [searchStartDate, setSearchStartDate] = useState('');
+  const [searchEndDate, setSearchEndDate] = useState('');
+  const [availableProperties, setAvailableProperties] = useState<Property[]>([]);
+  const [isSelectingStartDate, setIsSelectingStartDate] = useState(true);
   const { state } = useAuth();
 
   useEffect(() => {
@@ -79,6 +87,127 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
     navigation.navigate('PropertyCalendar', { property });
   };
 
+  const findAvailableProperties = () => {
+    if (!searchStartDate || !searchEndDate) {
+      Alert.alert('Hata', 'Lütfen başlangıç ve bitiş tarihlerini seçin');
+      return;
+    }
+
+    const start = new Date(searchStartDate);
+    const end = new Date(searchEndDate);
+    
+    if (start > end) {
+      Alert.alert('Hata', 'Başlangıç tarihi bitiş tarihinden sonra olamaz');
+      return;
+    }
+
+    const available: Property[] = [];
+
+    properties.forEach(property => {
+      const propertyReservations = reservations.filter(r => r.propertyId === property.id);
+      let isAvailable = true;
+
+      // Seçilen tarih aralığını kontrol et
+      const currentDate = new Date(start);
+      while (currentDate <= end) {
+        const dateString = currentDate.toISOString().split('T')[0];
+        
+        // Bu tarihte rezervasyon var mı kontrol et
+        const hasReservation = propertyReservations.some(reservation => {
+          if (reservation.endDate) {
+            // Tarih aralığı rezervasyonu
+            return dateString >= reservation.date && dateString <= reservation.endDate;
+          } else {
+            // Tek günlük rezervasyon
+            return dateString === reservation.date;
+          }
+        });
+
+        if (hasReservation) {
+          isAvailable = false;
+          break;
+        }
+
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+
+      if (isAvailable) {
+        available.push(property);
+      }
+    });
+
+    setAvailableProperties(available);
+  };
+
+  const resetSearch = () => {
+    setSearchStartDate('');
+    setSearchEndDate('');
+    setAvailableProperties([]);
+    setIsSelectingStartDate(true);
+    setShowAvailabilitySearch(false);
+  };
+
+  const onCalendarDayPress = (day: any) => {
+    if (isSelectingStartDate) {
+      setSearchStartDate(day.dateString);
+      setSearchEndDate(''); // Reset end date when selecting new start date
+      setIsSelectingStartDate(false);
+    } else {
+      if (day.dateString < searchStartDate) {
+        // If selected end date is before start date, swap them
+        setSearchEndDate(searchStartDate);
+        setSearchStartDate(day.dateString);
+      } else {
+        setSearchEndDate(day.dateString);
+      }
+      setIsSelectingStartDate(true);
+    }
+  };
+
+  const getMarkedDatesForSearch = () => {
+    const marked: any = {};
+    
+    if (searchStartDate) {
+      if (searchEndDate && searchStartDate !== searchEndDate) {
+        // Period marking for date range
+        marked[searchStartDate] = {
+          startingDay: true,
+          color: '#007AFF',
+          textColor: '#FFF',
+        };
+        marked[searchEndDate] = {
+          endingDay: true,
+          color: '#007AFF',
+          textColor: '#FFF',
+        };
+        
+        // Mark days in between
+        const start = new Date(searchStartDate);
+        const end = new Date(searchEndDate);
+        const current = new Date(start);
+        current.setDate(current.getDate() + 1);
+        
+        while (current < end) {
+          const dateString = current.toISOString().split('T')[0];
+          marked[dateString] = {
+            color: '#B3D9FF',
+            textColor: '#000',
+          };
+          current.setDate(current.getDate() + 1);
+        }
+      } else {
+        // Single day selection
+        marked[searchStartDate] = {
+          selected: true,
+          selectedColor: '#007AFF',
+          selectedTextColor: '#FFF',
+        };
+      }
+    }
+    
+    return marked;
+  };
+
   return (
     <View style={styles.container}>
       <View style={styles.contentContainer}>
@@ -93,6 +222,19 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
             <Text style={styles.statLabel}>Aktif Rezervasyon</Text>
           </View>
         </View>
+
+        {properties.length > 0 && (
+          <View style={styles.availabilitySection}>
+            <TouchableOpacity 
+              style={styles.availabilityButton}
+              onPress={() => setShowAvailabilitySearch(true)}
+            >
+              <Text style={styles.availabilityButtonText}>
+                🔍 Boş Gün Bul
+              </Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
         {properties.length > 0 && (
           <View style={styles.quickAccess}>
@@ -118,6 +260,110 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
           </View>
         )}
       </View>
+
+      <Modal
+        visible={showAvailabilitySearch}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={resetSearch}>
+              <Text style={styles.cancelButton}>İptal</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Boş Gün Bul</Text>
+            <View style={styles.headerSpacer} />
+          </View>
+
+          <ScrollView style={styles.modalContent}>
+            <Text style={styles.searchInstructions}>
+              {isSelectingStartDate 
+                ? "Başlangıç tarihini seçin:" 
+                : "Bitiş tarihini seçin:"}
+            </Text>
+            
+            <Calendar
+              onDayPress={onCalendarDayPress}
+              markedDates={getMarkedDatesForSearch()}
+              markingType="period"
+              minDate={new Date().toISOString().split('T')[0]}
+              theme={{
+                selectedDayBackgroundColor: '#007AFF',
+                selectedDayTextColor: '#FFF',
+                todayTextColor: '#007AFF',
+                dayTextColor: '#333',
+                textDisabledColor: '#d9e1e8',
+                textDayFontSize: 16,
+                textMonthFontSize: 16,
+                textDayHeaderFontSize: 14,
+                calendarBackground: '#FFF',
+                arrowColor: '#007AFF',
+              }}
+              firstDay={1}
+            />
+
+            {searchStartDate && (
+              <View style={styles.selectedDatesInfo}>
+                <Text style={styles.selectedDateText}>
+                  Başlangıç: {searchStartDate}
+                </Text>
+                {searchEndDate && (
+                  <Text style={styles.selectedDateText}>
+                    Bitiş: {searchEndDate}
+                  </Text>
+                )}
+              </View>
+            )}
+            
+            <View style={styles.searchButtons}>
+              <TouchableOpacity 
+                style={[
+                  styles.searchButton,
+                  (!searchStartDate || !searchEndDate) && styles.disabledButton
+                ]}
+                onPress={findAvailableProperties}
+                disabled={!searchStartDate || !searchEndDate}
+              >
+                <Text style={styles.searchButtonText}>Ara</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={styles.resetButton}
+                onPress={resetSearch}
+              >
+                <Text style={styles.resetButtonText}>Temizle</Text>
+              </TouchableOpacity>
+            </View>
+
+            {availableProperties.length > 0 && (
+              <View style={styles.resultsContainer}>
+                <Text style={styles.resultsTitle}>Boş Evler:</Text>
+                {availableProperties.map(property => (
+                  <TouchableOpacity
+                    key={property.id}
+                    style={styles.resultItem}
+                    onPress={() => {
+                      setShowAvailabilitySearch(false);
+                      handlePropertyPress(property);
+                    }}
+                  >
+                    <Text style={styles.resultText}>{property.name}</Text>
+                    <Text style={styles.resultArrow}>→</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            )}
+
+            {searchStartDate && searchEndDate && availableProperties.length === 0 && (
+              <View style={styles.noResultsContainer}>
+                <Text style={styles.noResultsText}>
+                  Seçilen tarihlerde boş ev bulunamadı
+                </Text>
+              </View>
+            )}
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -193,6 +439,132 @@ const styles = StyleSheet.create({
   quickPropertyReservations: {
     fontSize: 12,
     color: '#666',
+  },
+  availabilitySection: {
+    marginBottom: 20,
+  },
+  availabilityButton: {
+    backgroundColor: '#007AFF',
+    padding: 12,
+    borderRadius: 8,
+    alignItems: 'center',
+    marginHorizontal: 10,
+  },
+  availabilityButtonText: {
+    color: '#FFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  modalContainer: {
+    flex: 1,
+    backgroundColor: '#FFF',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E0E0E0',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+  },
+  cancelButton: {
+    color: '#007AFF',
+    fontSize: 16,
+  },
+  headerSpacer: {
+    width: 40,
+  },
+  modalContent: {
+    flex: 1,
+    padding: 20,
+  },
+  searchInstructions: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 15,
+  },
+  selectedDatesInfo: {
+    backgroundColor: '#F0F8FF',
+    padding: 10,
+    borderRadius: 6,
+    marginVertical: 15,
+  },
+  selectedDateText: {
+    fontSize: 14,
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  searchButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginBottom: 15,
+  },
+  searchButton: {
+    backgroundColor: '#00B383',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  searchButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  disabledButton: {
+    backgroundColor: '#CCC',
+  },
+  resetButton: {
+    backgroundColor: '#FF9500',
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 6,
+  },
+  resetButtonText: {
+    color: '#FFF',
+    fontWeight: '600',
+  },
+  resultsContainer: {
+    marginTop: 10,
+  },
+  resultsTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 10,
+  },
+  resultItem: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#F0F8FF',
+    padding: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  resultText: {
+    fontSize: 14,
+    color: '#333',
+    fontWeight: '600',
+  },
+  resultArrow: {
+    fontSize: 16,
+    color: '#007AFF',
+  },
+  noResultsContainer: {
+    alignItems: 'center',
+    padding: 20,
+  },
+  noResultsText: {
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
   },
 });
 

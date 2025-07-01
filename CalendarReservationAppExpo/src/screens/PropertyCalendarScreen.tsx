@@ -170,6 +170,7 @@ const PropertyCalendarScreen: React.FC<PropertyCalendarScreenProps> = ({ navigat
         <CalendarList
           onDayPress={onDayPress}
           markedDates={markedDates}
+          minDate={new Date().toISOString().split('T')[0]}
           pastScrollRange={2}
           futureScrollRange={24}
           scrollEnabled={true}
