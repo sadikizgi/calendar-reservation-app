@@ -3,8 +3,9 @@ export interface User {
   username: string; // İşletme adı
   email: string;
   password: string; // Hashlenmiş şifre (gerçek uygulamada)
-  role: 'admin' | 'user';
+  role: 'admin' | 'user' | 'master';
   isActive: boolean;
+  isPending?: boolean; // Onay bekleyen kullanıcılar için
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -68,6 +69,7 @@ export interface CalendarDay {
 export type RootStackParamList = {
   Auth: undefined;
   Main: undefined;
+  MasterDashboard: undefined;
   Login: undefined;
   Register: undefined;
   Calendar: undefined;

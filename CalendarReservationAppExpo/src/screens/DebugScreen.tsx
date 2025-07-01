@@ -109,7 +109,7 @@ const DebugScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Debug Ekranı</Text>
+        <Text style={styles.title}>Veriler</Text>
       </View>
 
       <View style={styles.content}>
@@ -120,18 +120,6 @@ const DebugScreen: React.FC = () => {
         <TouchableOpacity style={styles.infoButton} onPress={showMySubUsers}>
           <Text style={styles.buttonText}>Alt Kullanıcılarımı Göster</Text>
         </TouchableOpacity>
-
-
-
-
-        <View style={styles.info}>
-          <Text style={styles.infoTitle}>Bilgi:</Text>
-          <Text style={styles.infoText}>
-            • Console'da detaylı logları görebilirsiniz{'\n'}
-            • Veri silme işlemleri geri alınamaz{'\n'}
-            • AsyncStorage'ı React Native'in local database'i olarak kullanıyoruz
-          </Text>
-        </View>
       </View>
     </ScrollView>
   );
@@ -173,22 +161,6 @@ const styles = StyleSheet.create({
     color: '#FFF',
     fontSize: 16,
     fontWeight: 'bold',
-  },
-  info: {
-    backgroundColor: '#F0F0F0',
-    padding: 15,
-    borderRadius: 8,
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontWeight: 'bold',
-    marginBottom: 10,
-    color: '#333',
-  },
-  infoText: {
-    fontSize: 14,
-    color: '#666',
-    lineHeight: 20,
   },
 });
 

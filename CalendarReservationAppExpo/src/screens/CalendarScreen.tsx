@@ -211,6 +211,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.contentContainer}>
+        
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{properties.length}</Text>
@@ -376,6 +377,16 @@ const styles = StyleSheet.create({
   contentContainer: {
     flex: 1,
     padding: 20,
+  },
+  headerSection: {
+    alignItems: 'center',
+    marginBottom: 20,
+    paddingHorizontal: 10,
+  },
+  welcomeText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#007AFF',
   },
   statsContainer: {
     flexDirection: 'row',

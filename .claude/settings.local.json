@@ -15,7 +15,8 @@
       "Bash(cp:*)",
       "Bash(npx expo:*)",
       "Bash(grep:*)",
-      "Bash(rg:*)"
+      "Bash(rg:*)",
+      "Bash(rm:*)"
     ],
     "deny": []
   }

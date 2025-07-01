@@ -14,6 +14,7 @@ import AddReservationScreen from '../screens/AddReservationScreen';
 import UserManagementScreen from '../screens/UserManagementScreen';
 import PropertyManagementScreen from '../screens/PropertyManagementScreen';
 import DebugScreen from '../screens/DebugScreen';
+import MasterDashboardScreen from '../screens/MasterDashboardScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
@@ -41,7 +42,7 @@ const MainTabs = () => {
         name="Calendar" 
         component={CalendarScreen}
         options={({ navigation }) => ({
-          title: 'Evlerim',
+          title: 'ReservaHub',
           tabBarIcon: ({ focused }) => <TabIcon title="🏠" focused={focused} />,
           headerLeft: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
@@ -91,8 +92,8 @@ const MainTabs = () => {
         name="Debug" 
         component={DebugScreen}
         options={{
-          title: 'Debug',
-          tabBarIcon: ({ focused }) => <TabIcon title="🔧" focused={focused} />,
+          title: 'Veriler',
+          tabBarIcon: ({ focused }) => <TabIcon title="📊" focused={focused} />,
           headerLeft: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
               <Text style={{ color: '#FFF', fontSize: 14 }}>
@@ -142,7 +143,7 @@ const MainTabs = () => {
 };
 
 const AppNavigator: React.FC = () => {
-  const { state } = useAuth();
+  const { state, logout } = useAuth();
 
   if (state.isLoading) {
     return null; // Show splash screen here
@@ -153,72 +154,79 @@ const AppNavigator: React.FC = () => {
       <Stack.Navigator screenOptions={{ headerShown: false }}>
         {state.isAuthenticated ? (
           <>
-            <Stack.Screen name="Main" component={MainTabs} />
-            <Stack.Screen 
-              name="PropertyCalendar" 
-              component={SimplePropertyCalendarScreen}
-              options={({ navigation }) => ({
-                headerShown: true,
-                headerStyle: { backgroundColor: '#007AFF' },
-                headerTintColor: '#FFF',
-                headerLeft: () => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
-                    <Text 
-                      style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
-                      onPress={() => navigation.goBack()}
-                    >
-                      ←
-                    </Text>
-                    <Text style={{ color: '#FFF', fontSize: 14 }}>
-                      {state.user?.username}
-                    </Text>
-                  </View>
-                ),
-                headerRight: () => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-                    <Text 
-                      style={{ color: '#FFF', fontSize: 16 }}
-                      onPress={() => logout()}
-                    >
-                      Çıkış
-                    </Text>
-                  </View>
-                ),
-              })}
-            />
-            <Stack.Screen 
-              name="AddReservation" 
-              component={AddReservationScreen}
-              options={({ navigation }) => ({
-                headerShown: true,
-                title: 'Rezervasyon Ekle',
-                headerStyle: { backgroundColor: '#007AFF' },
-                headerTintColor: '#FFF',
-                headerLeft: () => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
-                    <Text 
-                      style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
-                      onPress={() => navigation.goBack()}
-                    >
-                      ←
-                    </Text>
-                    <Text style={{ color: '#FFF', fontSize: 14 }}>
-                      {state.user?.username}
-                    </Text>
-                  </View>
-                ),
-                headerRight: () => (
-                  <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
-                    <Text 
-                      style={{ color: '#FFF', fontSize: 16 }}
-                      onPress={() => logout()}
-                    >
-                      Çıkış
-                    </Text>
-                  </View>
-                ),
-              })}
-            />
+            {/* Master user gets special dashboard */}
+            {state.user?.role === 'master' ? (
+              <Stack.Screen name="MasterDashboard" component={MasterDashboardScreen} />
+            ) : (
+              <>
+                <Stack.Screen name="Main" component={MainTabs} />
+                <Stack.Screen 
+                  name="PropertyCalendar" 
+                  component={SimplePropertyCalendarScreen}
+                  options={({ navigation }) => ({
+                    headerShown: true,
+                    headerStyle: { backgroundColor: '#007AFF' },
+                    headerTintColor: '#FFF',
+                    headerLeft: () => (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
+                        <Text 
+                          style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
+                          onPress={() => navigation.goBack()}
+                        >
+                          ←
+                        </Text>
+                        <Text style={{ color: '#FFF', fontSize: 14 }}>
+                          {state.user?.username}
+                        </Text>
+                      </View>
+                    ),
+                    headerRight: () => (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+                        <Text 
+                          style={{ color: '#FFF', fontSize: 16 }}
+                          onPress={() => logout()}
+                        >
+                          Çıkış
+                        </Text>
+                      </View>
+                    ),
+                  })}
+                />
+                <Stack.Screen 
+                  name="AddReservation" 
+                  component={AddReservationScreen}
+                  options={({ navigation }) => ({
+                    headerShown: true,
+                    title: 'Rezervasyon Ekle',
+                    headerStyle: { backgroundColor: '#007AFF' },
+                    headerTintColor: '#FFF',
+                    headerLeft: () => (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
+                        <Text 
+                          style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
+                          onPress={() => navigation.goBack()}
+                        >
+                          ←
+                        </Text>
+                        <Text style={{ color: '#FFF', fontSize: 14 }}>
+                          {state.user?.username}
+                        </Text>
+                      </View>
+                    ),
+                    headerRight: () => (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 15 }}>
+                        <Text 
+                          style={{ color: '#FFF', fontSize: 16 }}
+                          onPress={() => logout()}
+                        >
+                          Çıkış
+                        </Text>
+                      </View>
+                    ),
+                  })}
+                />
+              </>
+            )}
           </>
         ) : (
           <Stack.Screen name="Login" component={LoginScreen} />

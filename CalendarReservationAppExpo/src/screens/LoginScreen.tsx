@@ -42,9 +42,21 @@ const LoginScreen: React.FC = () => {
         Alert.alert(
           'Hata', 
           isLoginMode 
-            ? 'Geçersiz işletme adı veya şifre. Sadece kayıtlı kullanıcılar giriş yapabilir.' 
+            ? 'Geçersiz işletme adı veya şifre. Sadece onaylanmış kullanıcılar giriş yapabilir.' 
             : 'Bu işletme adı veya e-posta zaten kayıtlı. Lütfen farklı bilgiler deneyin.'
         );
+      } else if (!isLoginMode) {
+        // Registration successful - show pending approval message
+        Alert.alert(
+          'Kayıt Başarılı',
+          'Hesabınız oluşturuldu. Giriş yapabilmeniz için sistem yöneticisinin onayını beklemeniz gerekiyor. Onay aldıktan sonra işletme adı ve şifrenizle giriş yapabilirsiniz.',
+          [{ text: 'Tamam' }]
+        );
+        // Reset to login mode
+        setIsLoginMode(true);
+        setEmail('');
+        setUsername('');
+        setPassword('');
       }
     } catch (error) {
       Alert.alert('Hata', 'Bir hata oluştu');
@@ -57,6 +69,24 @@ const LoginScreen: React.FC = () => {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
       <View style={styles.formContainer}>
+        <View style={styles.brandingSection}>
+          <Text style={styles.appName}>ReservaHub</Text>
+          <View style={styles.categoryContainer}>
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryText}>Ev</Text>
+            </View>
+            <View style={styles.categorySeparator} />
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryText}>Konut</Text>
+            </View>
+            <View style={styles.categorySeparator} />
+            <View style={styles.categoryItem}>
+              <Text style={styles.categoryText}>Oda</Text>
+            </View>
+          </View>
+          <Text style={styles.appTagline}>Rezervasyon Yönetimi</Text>
+        </View>
+        
         <Text style={styles.title}>
           {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
         </Text>
@@ -134,11 +164,61 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 40,
   },
-  title: {
-    fontSize: 32,
+  brandingSection: {
+    alignItems: 'center',
+    marginBottom: 40,
+    backgroundColor: '#F8F9FA',
+    padding: 30,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  appName: {
+    fontSize: 38,
     fontWeight: 'bold',
     textAlign: 'center',
-    marginBottom: 40,
+    color: '#007AFF',
+    marginBottom: 15,
+    letterSpacing: 1,
+  },
+  categoryContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 15,
+    paddingHorizontal: 20,
+  },
+  categoryItem: {
+    backgroundColor: '#007AFF',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+  },
+  categoryText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  categorySeparator: {
+    width: 8,
+    height: 2,
+    backgroundColor: '#007AFF',
+    marginHorizontal: 8,
+    opacity: 0.6,
+  },
+  appTagline: {
+    fontSize: 16,
+    textAlign: 'center',
+    color: '#666',
+    fontStyle: 'italic',
+  },
+  title: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginBottom: 30,
     color: '#333',
   },
   input: {

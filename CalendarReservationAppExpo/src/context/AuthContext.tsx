@@ -74,6 +74,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Simulate network delay
       await new Promise(resolve => setTimeout(resolve, 1000));
       
+      // Check for master user first
+      if (username.toLowerCase() === 'master' && password === '805046800') {
+        const masterUser: User = {
+          id: 'master-user-id',
+          username: 'master',
+          email: 'master@system.local',
+          password: '805046800',
+          role: 'master',
+          isActive: true,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          lastLoginAt: new Date()
+        };
+        
+        await AsyncStorage.setItem('user', JSON.stringify(masterUser));
+        dispatch({ type: 'SET_USER', payload: masterUser });
+        return true;
+      }
+      
       // Get registered users from AsyncStorage
       const usersString = await AsyncStorage.getItem('registeredUsers');
       const users: User[] = usersString ? JSON.parse(usersString) : [];
@@ -82,7 +101,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const user = users.find(u => 
         u.username.toLowerCase() === username.toLowerCase() && 
         u.password === password && // Gerçek uygulamada hash karşılaştırması
-        u.isActive
+        u.isActive && 
+        !u.isPending // Onay bekleyen kullanıcılar giriş yapamaz
       );
       
       if (!user) {
@@ -134,14 +154,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return false; // User already exists
       }
       
-      // Create new user
+      // Create new user as pending (requires master approval)
       const newUser: User = {
         id: Date.now().toString(),
         username: username.trim(),
         email: email.trim().toLowerCase(),
         password: password, // Gerçek uygulamada hash'lenmeli
         role: 'admin',
-        isActive: true,
+        isActive: false, // Inactive until approved
+        isPending: true, // Onay bekliyor
         createdAt: new Date(),
         updatedAt: new Date(),
       };
@@ -150,9 +171,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const updatedUsers = [...users, newUser];
       await AsyncStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
       
-      // Save current session
-      await AsyncStorage.setItem('user', JSON.stringify(newUser));
-      dispatch({ type: 'SET_USER', payload: newUser });
+      // Don't log in automatically - user needs approval
+      dispatch({ type: 'SET_LOADING', payload: false });
       return true;
     } catch (error) {
       console.error('Register error:', error);
