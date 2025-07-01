@@ -12,6 +12,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface MasterDashboardScreenProps {
   navigation: any;
@@ -22,6 +23,7 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
   const [approvedUsers, setApprovedUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const { logout } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadUsers();

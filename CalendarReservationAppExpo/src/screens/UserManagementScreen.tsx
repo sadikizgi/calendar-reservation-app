@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SubUser } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const UserManagementScreen: React.FC = () => {
   const [subUsers, setSubUsers] = useState<SubUser[]>([]);
@@ -19,6 +20,7 @@ const UserManagementScreen: React.FC = () => {
   const [newUserName, setNewUserName] = useState('');
   const [newUserEmail, setNewUserEmail] = useState('');
   const { state } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadSubUsers();

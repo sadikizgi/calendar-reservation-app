@@ -15,6 +15,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property, Reservation } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 80) / 2; // 80 = container padding (40) + row padding (20) + spacing (20)
@@ -32,6 +33,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
   const [availableProperties, setAvailableProperties] = useState<Property[]>([]);
   const [isSelectingStartDate, setIsSelectingStartDate] = useState(true);
   const { state } = useAuth();
+  const { t } = useLanguage();
 
   useEffect(() => {
     loadProperties();
@@ -89,7 +91,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
 
   const findAvailableProperties = () => {
     if (!searchStartDate || !searchEndDate) {
-      Alert.alert('Hata', 'Lütfen başlangıç ve bitiş tarihlerini seçin');
+      Alert.alert(t('error'), t('selectDatesError'));
       return;
     }
 
@@ -97,7 +99,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
     const end = new Date(searchEndDate);
     
     if (start > end) {
-      Alert.alert('Hata', 'Başlangıç tarihi bitiş tarihinden sonra olamaz');
+      Alert.alert(t('error'), t('invalidDateRange'));
       return;
     }
 
@@ -215,12 +217,12 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
         <View style={styles.statsContainer}>
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{properties.length}</Text>
-            <Text style={styles.statLabel}>Toplam Ev</Text>
+            <Text style={styles.statLabel}>{t('totalProperties')}</Text>
           </View>
           
           <View style={styles.statCard}>
             <Text style={styles.statNumber}>{reservations.length}</Text>
-            <Text style={styles.statLabel}>Aktif Rezervasyon</Text>
+            <Text style={styles.statLabel}>{t('activeReservations')}</Text>
           </View>
         </View>
 
@@ -231,7 +233,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
               onPress={() => setShowAvailabilitySearch(true)}
             >
               <Text style={styles.availabilityButtonText}>
-                🔍 Boş Gün Bul
+                🔍 {t('findAvailableProperties')}
               </Text>
             </TouchableOpacity>
           </View>
@@ -250,7 +252,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
                 >
                   <Text style={styles.quickPropertyName}>{item.name}</Text>
                   <Text style={styles.quickPropertyReservations}>
-                    {getReservationCountForProperty(item.id)} rezervasyon
+                    {getReservationCountForProperty(item.id)} {t('reservationCount')}
                   </Text>
                 </TouchableOpacity>
               )}
@@ -270,17 +272,17 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={resetSearch}>
-              <Text style={styles.cancelButton}>İptal</Text>
+              <Text style={styles.cancelButton}>{t('cancel')}</Text>
             </TouchableOpacity>
-            <Text style={styles.modalTitle}>Boş Gün Bul</Text>
+            <Text style={styles.modalTitle}>{t('findAvailableProperties')}</Text>
             <View style={styles.headerSpacer} />
           </View>
 
           <ScrollView style={styles.modalContent}>
             <Text style={styles.searchInstructions}>
               {isSelectingStartDate 
-                ? "Başlangıç tarihini seçin:" 
-                : "Bitiş tarihini seçin:"}
+                ? t('selectStartDate')
+                : t('selectEndDate')}
             </Text>
             
             <Calendar
@@ -306,11 +308,11 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
             {searchStartDate && (
               <View style={styles.selectedDatesInfo}>
                 <Text style={styles.selectedDateText}>
-                  Başlangıç: {searchStartDate}
+                  {t('startDate')}: {searchStartDate}
                 </Text>
                 {searchEndDate && (
                   <Text style={styles.selectedDateText}>
-                    Bitiş: {searchEndDate}
+                    {t('endDate')}: {searchEndDate}
                   </Text>
                 )}
               </View>
@@ -325,20 +327,20 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
                 onPress={findAvailableProperties}
                 disabled={!searchStartDate || !searchEndDate}
               >
-                <Text style={styles.searchButtonText}>Ara</Text>
+                <Text style={styles.searchButtonText}>{t('search')}</Text>
               </TouchableOpacity>
               
               <TouchableOpacity 
                 style={styles.resetButton}
                 onPress={resetSearch}
               >
-                <Text style={styles.resetButtonText}>Temizle</Text>
+                <Text style={styles.resetButtonText}>{t('clear')}</Text>
               </TouchableOpacity>
             </View>
 
             {availableProperties.length > 0 && (
               <View style={styles.resultsContainer}>
-                <Text style={styles.resultsTitle}>Boş Evler:</Text>
+                <Text style={styles.resultsTitle}>{t('availableProperties')}</Text>
                 {availableProperties.map(property => (
                   <TouchableOpacity
                     key={property.id}
@@ -358,7 +360,7 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
             {searchStartDate && searchEndDate && availableProperties.length === 0 && (
               <View style={styles.noResultsContainer}>
                 <Text style={styles.noResultsText}>
-                  Seçilen tarihlerde boş ev bulunamadı
+                  {t('noPropertiesAvailable')}
                 </Text>
               </View>
             )}

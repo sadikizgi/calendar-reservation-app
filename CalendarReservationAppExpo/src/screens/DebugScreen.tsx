@@ -8,8 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { useLanguage } from '../context/LanguageContext';
 
 const DebugScreen: React.FC = () => {
+  const { t } = useLanguage();
   const showAsyncStorageData = async () => {
     try {
       const properties = await AsyncStorage.getItem('properties');
@@ -54,16 +56,16 @@ const DebugScreen: React.FC = () => {
           userSubUsersCount = userSubUsers.length;
         }
         
-        propertiesInfo = `Evlerim: ${userPropertiesCount}\nRezervasyon: ${userReservationsCount}\nAlt Kullanıcı: ${userSubUsersCount}`;
+        propertiesInfo = `${t('myProperties')} ${userPropertiesCount}\n${t('myReservations')} ${userReservationsCount}\n${t('mySubUsers')} ${userSubUsersCount}`;
       }
 
       Alert.alert(
-        'Verilerim',
+        t('myData'),
         `${userInfo}\n\n${propertiesInfo}`
       );
     } catch (error) {
       console.error('Debug error:', error);
-      Alert.alert('Hata', 'Veri okunamadı');
+      Alert.alert(t('error'), t('loadError'));
     }
   };
 
@@ -75,14 +77,14 @@ const DebugScreen: React.FC = () => {
       const user = await AsyncStorage.getItem('user');
       
       if (!user) {
-        Alert.alert('Hata', 'Kullanıcı bilgisi bulunamadı');
+        Alert.alert(t('error'), t('userInfoNotFound'));
         return;
       }
 
       const userObj = JSON.parse(user);
       
       if (!subUsers) {
-        Alert.alert('Bilgi', 'Henüz alt kullanıcı eklenmemiş');
+        Alert.alert(t('info'), t('noSubUsersYet'));
         return;
       }
 
@@ -90,7 +92,7 @@ const DebugScreen: React.FC = () => {
       const mySubUsers = subUsersObj.filter((su: any) => su.parentUserId === userObj.id);
       
       if (mySubUsers.length === 0) {
-        Alert.alert('Bilgi', 'Henüz alt kullanıcı eklenmemiş');
+        Alert.alert(t('info'), t('noSubUsersYet'));
         return;
       }
 
@@ -98,10 +100,10 @@ const DebugScreen: React.FC = () => {
         `${index + 1}. ${subUser.name}${subUser.email ? ` (${subUser.email})` : ''}`
       ).join('\n');
 
-      Alert.alert('Alt Kullanıcılarım', subUserList);
+      Alert.alert(t('subUsers'), subUserList);
     } catch (error) {
       console.error('Show sub users error:', error);
-      Alert.alert('Hata', 'Alt kullanıcılar görüntülenemedi');
+      Alert.alert(t('error'), t('loadError'));
     }
   };
 
@@ -109,16 +111,16 @@ const DebugScreen: React.FC = () => {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Veriler</Text>
+        <Text style={styles.title}>{t('data')}</Text>
       </View>
 
       <View style={styles.content}>
         <TouchableOpacity style={styles.button} onPress={showAsyncStorageData}>
-          <Text style={styles.buttonText}>Verileri Görüntüle</Text>
+          <Text style={styles.buttonText}>{t('viewData')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.infoButton} onPress={showMySubUsers}>
-          <Text style={styles.buttonText}>Alt Kullanıcılarımı Göster</Text>
+          <Text style={styles.buttonText}>{t('showMySubUsers')}</Text>
         </TouchableOpacity>
       </View>
     </ScrollView>

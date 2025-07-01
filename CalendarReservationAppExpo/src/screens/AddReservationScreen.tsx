@@ -12,6 +12,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Reservation, SubUser } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface AddReservationScreenProps {
   navigation: any;
@@ -27,6 +28,7 @@ const AddReservationScreen: React.FC<AddReservationScreenProps> = ({ navigation,
   const [selectedSubUser, setSelectedSubUser] = useState<string>('');
   const [subUsers, setSubUsers] = useState<SubUser[]>([]);
   const { state } = useAuth();
+  const { t } = useLanguage();
   const { selectedDate, endDate, propertyId, editingReservation } = route.params || {};
 
   useEffect(() => {

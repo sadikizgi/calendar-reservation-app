@@ -15,6 +15,7 @@ import UserManagementScreen from '../screens/UserManagementScreen';
 import PropertyManagementScreen from '../screens/PropertyManagementScreen';
 import DebugScreen from '../screens/DebugScreen';
 import MasterDashboardScreen from '../screens/MasterDashboardScreen';
+import SettingsScreen from '../screens/SettingsScreen';
 
 const Stack = createStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator();
@@ -42,7 +43,7 @@ const MainTabs = () => {
         name="Calendar" 
         component={CalendarScreen}
         options={({ navigation }) => ({
-          title: 'ReservaHub',
+          title: 'Evlerim',
           tabBarIcon: ({ focused }) => <TabIcon title="🏠" focused={focused} />,
           headerLeft: () => (
             <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
@@ -57,7 +58,7 @@ const MainTabs = () => {
                 style={{ color: '#FFF', fontSize: 16 }}
                 onPress={() => logout()}
               >
-                Çıkış
+Çıkış
               </Text>
             </View>
           ),
@@ -82,7 +83,7 @@ const MainTabs = () => {
                 style={{ color: '#FFF', fontSize: 16 }}
                 onPress={logout}
               >
-                Çıkış
+Çıkış
               </Text>
             </View>
           ),
@@ -107,7 +108,7 @@ const MainTabs = () => {
                 style={{ color: '#FFF', fontSize: 16 }}
                 onPress={logout}
               >
-                Çıkış
+Çıkış
               </Text>
             </View>
           ),
@@ -132,10 +133,19 @@ const MainTabs = () => {
                 style={{ color: '#FFF', fontSize: 16 }}
                 onPress={() => logout()}
               >
-                Çıkış
+Çıkış
               </Text>
             </View>
           ),
+        }}
+      />
+      <Tab.Screen 
+        name="Settings" 
+        component={SettingsScreen}
+        options={{
+          title: 'Ayarlar',
+          tabBarIcon: ({ focused }) => <TabIcon title="⚙️" focused={focused} />,
+          headerShown: false,
         }}
       />
     </Tab.Navigator>
@@ -186,7 +196,7 @@ const AppNavigator: React.FC = () => {
                           style={{ color: '#FFF', fontSize: 16 }}
                           onPress={() => logout()}
                         >
-                          Çıkış
+          Çıkış
                         </Text>
                       </View>
                     ),
@@ -219,7 +229,7 @@ const AppNavigator: React.FC = () => {
                           style={{ color: '#FFF', fontSize: 16 }}
                           onPress={() => logout()}
                         >
-                          Çıkış
+          Çıkış
                         </Text>
                       </View>
                     ),

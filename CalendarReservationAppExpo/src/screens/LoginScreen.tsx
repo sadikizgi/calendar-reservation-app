@@ -11,6 +11,7 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const LoginScreen: React.FC = () => {
   const [username, setUsername] = useState('');
@@ -18,15 +19,16 @@ const LoginScreen: React.FC = () => {
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [email, setEmail] = useState('');
   const { state, login, register } = useAuth();
+  const { t, tNested, language, setLanguage } = useLanguage();
 
   const handleSubmit = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert('Hata', 'İşletme adı ve şifre gerekli');
+      Alert.alert(t('error'), t('fieldsRequired'));
       return;
     }
 
     if (!isLoginMode && !email.trim()) {
-      Alert.alert('Hata', 'E-posta adresi gerekli');
+      Alert.alert(t('error'), t('emailRequired'));
       return;
     }
 
@@ -40,17 +42,17 @@ const LoginScreen: React.FC = () => {
 
       if (!success) {
         Alert.alert(
-          'Hata', 
+          t('error'), 
           isLoginMode 
-            ? 'Geçersiz işletme adı veya şifre. Sadece onaylanmış kullanıcılar giriş yapabilir.' 
-            : 'Bu işletme adı veya e-posta zaten kayıtlı. Lütfen farklı bilgiler deneyin.'
+            ? t('invalidCredentials')
+            : t('userAlreadyExists')
         );
       } else if (!isLoginMode) {
         // Registration successful - show pending approval message
         Alert.alert(
-          'Kayıt Başarılı',
-          'Hesabınız oluşturuldu. Giriş yapabilmeniz için sistem yöneticisinin onayını beklemeniz gerekiyor. Onay aldıktan sonra işletme adı ve şifrenizle giriş yapabilirsiniz.',
-          [{ text: 'Tamam' }]
+          t('registrationSuccess'),
+          t('pendingApproval'),
+          [{ text: t('ok') }]
         );
         // Reset to login mode
         setIsLoginMode(true);
@@ -59,7 +61,7 @@ const LoginScreen: React.FC = () => {
         setPassword('');
       }
     } catch (error) {
-      Alert.alert('Hata', 'Bir hata oluştu');
+      Alert.alert(t('error'), t('genericError'));
     }
   };
 
@@ -68,32 +70,54 @@ const LoginScreen: React.FC = () => {
       style={styles.container} 
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Language Selector */}
+      <View style={styles.languageSelector}>
+        <TouchableOpacity
+          style={[
+            styles.flagButton,
+            language === 'tr' && styles.flagButtonActive
+          ]}
+          onPress={() => setLanguage('tr')}
+        >
+          <Text style={styles.flagText}>🇹🇷</Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[
+            styles.flagButton,
+            language === 'en' && styles.flagButtonActive
+          ]}
+          onPress={() => setLanguage('en')}
+        >
+          <Text style={styles.flagText}>🇺🇸</Text>
+        </TouchableOpacity>
+      </View>
+
       <View style={styles.formContainer}>
         <View style={styles.brandingSection}>
-          <Text style={styles.appName}>ReservaHub</Text>
+          <Text style={styles.appName}>{t('appName')}</Text>
           <View style={styles.categoryContainer}>
             <View style={styles.categoryItem}>
-              <Text style={styles.categoryText}>Ev</Text>
+              <Text style={styles.categoryText}>{tNested('categories.house')}</Text>
             </View>
             <View style={styles.categorySeparator} />
             <View style={styles.categoryItem}>
-              <Text style={styles.categoryText}>Konut</Text>
+              <Text style={styles.categoryText}>{tNested('categories.residence')}</Text>
             </View>
             <View style={styles.categorySeparator} />
             <View style={styles.categoryItem}>
-              <Text style={styles.categoryText}>Oda</Text>
+              <Text style={styles.categoryText}>{tNested('categories.room')}</Text>
             </View>
           </View>
-          <Text style={styles.appTagline}>Rezervasyon Yönetimi</Text>
+          <Text style={styles.appTagline}>{t('appTagline')}</Text>
         </View>
         
         <Text style={styles.title}>
-          {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
+          {isLoginMode ? t('login') : t('register')}
         </Text>
         
         <TextInput
           style={styles.input}
-          placeholder="İşletme Adı"
+          placeholder={t('businessName')}
           value={username}
           onChangeText={setUsername}
           autoCapitalize="none"
@@ -104,7 +128,7 @@ const LoginScreen: React.FC = () => {
         {!isLoginMode && (
           <TextInput
             style={styles.input}
-            placeholder="E-posta"
+            placeholder={t('email')}
             value={email}
             onChangeText={setEmail}
             keyboardType="email-address"
@@ -116,7 +140,7 @@ const LoginScreen: React.FC = () => {
 
         <TextInput
           style={styles.input}
-          placeholder="Şifre"
+          placeholder={t('password')}
           value={password}
           onChangeText={setPassword}
           secureTextEntry
@@ -134,7 +158,7 @@ const LoginScreen: React.FC = () => {
             <ActivityIndicator color="#FFF" />
           ) : (
             <Text style={styles.buttonText}>
-              {isLoginMode ? 'Giriş Yap' : 'Kayıt Ol'}
+              {isLoginMode ? t('login') : t('register')}
             </Text>
           )}
         </TouchableOpacity>
@@ -145,8 +169,8 @@ const LoginScreen: React.FC = () => {
         >
           <Text style={styles.linkText}>
             {isLoginMode 
-              ? 'Hesabınız yok mu? Kayıt olun' 
-              : 'Zaten hesabınız var mı? Giriş yapın'}
+              ? t('noAccount')
+              : t('alreadyHaveAccount')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -159,6 +183,34 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f5f5f5',
     justifyContent: 'center',
+  },
+  languageSelector: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    flexDirection: 'row',
+    zIndex: 1000,
+  },
+  flagButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    backgroundColor: 'rgba(255,255,255,0.8)',
+    borderWidth: 2,
+    borderColor: 'transparent',
+  },
+  flagButtonActive: {
+    borderColor: '#007AFF',
+    backgroundColor: '#FFF',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  flagText: {
+    fontSize: 20,
   },
   formContainer: {
     paddingHorizontal: 20,

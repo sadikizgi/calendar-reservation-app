@@ -15,10 +15,11 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property, Reservation } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 const { width, height } = Dimensions.get('window');
 
-// Türkçe locale ayarları
+// Calendar locale ayarları
 LocaleConfig.locales['tr'] = {
   monthNames: [
     'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran',
@@ -34,6 +35,23 @@ LocaleConfig.locales['tr'] = {
   dayNamesShort: ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'],
   today: 'Bugün'
 };
+
+LocaleConfig.locales['en'] = {
+  monthNames: [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ],
+  monthNamesShort: [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ],
+  dayNames: [
+    'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'
+  ],
+  dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+  today: 'Today'
+};
+
 LocaleConfig.defaultLocale = 'tr';
 
 interface SimplePropertyCalendarScreenProps {
@@ -52,9 +70,16 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [currentProperty, setCurrentProperty] = useState<Property>(route.params.property);
   const { state } = useAuth();
+  const { t, language } = useLanguage();
   const { property }: { property: Property } = route.params;
 
   console.log('SimplePropertyCalendarScreen opened for:', property.name);
+
+  // Dil değiştiğinde calendar locale'ını güncelle
+  useEffect(() => {
+    console.log('Setting calendar locale to:', language);
+    LocaleConfig.defaultLocale = language;
+  }, [language]);
 
   useEffect(() => {
     loadReservations();
@@ -435,7 +460,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           text: 'Dışa Aktar',
           onPress: () => {
             // TODO: Export functionality
-            Alert.alert('Bilgi', 'Dışa aktarma özelliği yakında eklenecek');
+            Alert.alert(t('info'), 'Export feature coming soon');
           }
         }
       ]
@@ -463,11 +488,11 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
                 setReservations([]);
                 clearSelection();
                 setShowSettingsModal(false);
-                Alert.alert('Başarılı', 'Tüm rezervasyonlar silindi');
+                Alert.alert(t('success'), 'All reservations deleted');
               }
             } catch (error) {
               console.error('Clear reservations error:', error);
-              Alert.alert('Hata', 'Rezervasyonlar silinemedi');
+              Alert.alert(t('error'), 'Could not delete reservations');
             }
           }
         }
@@ -508,10 +533,10 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
 
               setShowSettingsModal(false);
               navigation.goBack();
-              Alert.alert('Başarılı', 'Takvim silindi');
+              Alert.alert(t('success'), 'Calendar deleted');
             } catch (error) {
               console.error('Delete property error:', error);
-              Alert.alert('Hata', 'Takvim silinemedi');
+              Alert.alert(t('error'), 'Could not delete calendar');
             }
           }
         }
@@ -609,11 +634,11 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
                 await AsyncStorage.setItem('reservations', JSON.stringify(updatedReservations));
                 loadReservations(); // Yeniden yükle
                 clearSelection(); // Seçimi temizle
-                Alert.alert('Başarılı', 'Rezervasyon silindi');
+                Alert.alert(t('success'), t('reservationDeleted'));
               }
             } catch (error) {
               console.error('Delete reservation error:', error);
-              Alert.alert('Hata', 'Rezervasyon silinemedi');
+              Alert.alert(t('error'), t('deleteError'));
             }
           }
         }
@@ -862,7 +887,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
                     if (reservation) {
                       handleManageReservation(reservation);
                     } else {
-                      Alert.alert('Hata', 'Rezervasyon bulunamadı');
+                      Alert.alert(t('error'), 'Reservation not found');
                     }
                   }}
                 >

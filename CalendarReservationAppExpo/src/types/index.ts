@@ -79,4 +79,5 @@ export type RootStackParamList = {
   UserManagement: undefined;
   PropertyManagement: { editingProperty?: Property };
   Debug: undefined;
+  Settings: undefined;
 };

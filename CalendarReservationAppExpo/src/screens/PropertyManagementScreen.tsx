@@ -13,6 +13,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useLanguage } from '../context/LanguageContext';
 
 interface PropertyManagementScreenProps {
   navigation: any;
@@ -27,6 +28,7 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const { state } = useAuth();
+  const { t } = useLanguage();
   const { editingProperty: routeEditingProperty } = route.params || {};
 
   useEffect(() => {
