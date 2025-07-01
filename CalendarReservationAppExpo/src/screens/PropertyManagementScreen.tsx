@@ -27,6 +27,8 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
   const [propertyName, setPropertyName] = useState('');
   const [propertyDescription, setPropertyDescription] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  const [defaultPrice, setDefaultPrice] = useState('');
+  const [currency, setCurrency] = useState('₺');
   const { state } = useAuth();
   const { t } = useLanguage();
   const { editingProperty: routeEditingProperty } = route.params || {};
@@ -95,6 +97,11 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
         description: propertyDescription.trim() || undefined,
         address: propertyAddress.trim() || undefined,
         userId: state.user.id,
+        pricing: {
+          defaultPrice: defaultPrice ? parseFloat(defaultPrice) : undefined,
+          currency: currency,
+          dailyPrices: {}
+        },
         createdAt: new Date(),
       };
 
@@ -137,6 +144,12 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
         name: propertyName.trim(),
         description: propertyDescription.trim() || undefined,
         address: propertyAddress.trim() || undefined,
+        pricing: {
+          ...editingProperty.pricing,
+          defaultPrice: defaultPrice ? parseFloat(defaultPrice) : undefined,
+          currency: currency,
+          dailyPrices: editingProperty.pricing?.dailyPrices || {}
+        },
       };
 
       const existingPropertiesString = await AsyncStorage.getItem('properties');
@@ -218,6 +231,8 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
     setPropertyName(property.name);
     setPropertyDescription(property.description || '');
     setPropertyAddress(property.address || '');
+    setDefaultPrice(property.pricing?.defaultPrice?.toString() || '');
+    setCurrency(property.pricing?.currency || '₺');
     setShowAddModal(true);
   };
 
@@ -225,6 +240,8 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
     setPropertyName('');
     setPropertyDescription('');
     setPropertyAddress('');
+    setDefaultPrice('');
+    setCurrency('₺');
     setEditingProperty(null);
   };
 
@@ -313,6 +330,7 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
             <TextInput
               style={styles.input}
               placeholder="Ev Adı *"
+              placeholderTextColor="#999"
               value={propertyName}
               onChangeText={setPropertyName}
               autoCorrect={false}
@@ -322,6 +340,7 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
             <TextInput
               style={styles.input}
               placeholder="Adres"
+              placeholderTextColor="#999"
               value={propertyAddress}
               onChangeText={setPropertyAddress}
               autoCorrect={false}
@@ -331,6 +350,7 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Açıklama"
+              placeholderTextColor="#999"
               value={propertyDescription}
               onChangeText={setPropertyDescription}
               multiline
@@ -339,6 +359,43 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
               spellCheck={false}
               autoCapitalize="none"
             />
+            
+            <View style={styles.pricingSection}>
+              <Text style={styles.sectionTitle}>Fiyatlandırma</Text>
+              <View style={styles.priceRow}>
+                <TextInput
+                  style={[styles.input, styles.priceInput]}
+                  placeholder="Günlük Fiyat"
+                  placeholderTextColor="#999"
+                  value={defaultPrice}
+                  onChangeText={setDefaultPrice}
+                  keyboardType="numeric"
+                  autoCorrect={false}
+                  autoCapitalize="none"
+                />
+                <View style={styles.currencyContainer}>
+                  <TouchableOpacity 
+                    style={[styles.currencyButton, currency === '₺' && styles.currencyButtonActive]}
+                    onPress={() => setCurrency('₺')}
+                  >
+                    <Text style={[styles.currencyText, currency === '₺' && styles.currencyTextActive]}>₺</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.currencyButton, currency === '€' && styles.currencyButtonActive]}
+                    onPress={() => setCurrency('€')}
+                  >
+                    <Text style={[styles.currencyText, currency === '€' && styles.currencyTextActive]}>€</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[styles.currencyButton, currency === '$' && styles.currencyButtonActive]}
+                    onPress={() => setCurrency('$')}
+                  >
+                    <Text style={[styles.currencyText, currency === '$' && styles.currencyTextActive]}>$</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+              <Text style={styles.priceNote}>Bu fiyat takvimde gösterilecek olan varsayılan günlük fiyattır</Text>
+            </View>
           </View>
         </View>
       </Modal>
@@ -490,6 +547,57 @@ const styles = StyleSheet.create({
   textArea: {
     height: 80,
     textAlignVertical: 'top',
+  },
+  pricingSection: {
+    marginTop: 20,
+    paddingTop: 15,
+    borderTopWidth: 1,
+    borderTopColor: '#E0E0E0',
+  },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#333',
+    marginBottom: 15,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  priceInput: {
+    flex: 1,
+    marginRight: 15,
+    marginBottom: 0,
+  },
+  currencyContainer: {
+    flexDirection: 'row',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    overflow: 'hidden',
+  },
+  currencyButton: {
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    backgroundColor: '#F8F9FA',
+  },
+  currencyButtonActive: {
+    backgroundColor: '#007AFF',
+  },
+  currencyText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#666',
+  },
+  currencyTextActive: {
+    color: '#FFF',
+  },
+  priceNote: {
+    fontSize: 12,
+    color: '#666',
+    fontStyle: 'italic',
+    textAlign: 'center',
   },
 });
 

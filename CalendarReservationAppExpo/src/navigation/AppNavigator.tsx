@@ -2,7 +2,7 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { Text, View } from 'react-native';
+import { Text, View, TouchableOpacity } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types';
 
@@ -179,12 +179,22 @@ const AppNavigator: React.FC = () => {
                     headerTintColor: '#FFF',
                     headerLeft: () => (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
-                        <Text 
-                          style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
+                        <TouchableOpacity 
+                          style={{ 
+                            paddingHorizontal: 12, 
+                            paddingVertical: 8, 
+                            marginRight: 15,
+                            minWidth: 44,
+                            minHeight: 44,
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                          }}
                           onPress={() => navigation.goBack()}
                         >
-                          ←
-                        </Text>
+                          <Text style={{ color: '#FFF', fontSize: 20 }}>
+                            ←
+                          </Text>
+                        </TouchableOpacity>
                         <Text style={{ color: '#FFF', fontSize: 14 }}>
                           {state.user?.username}
                         </Text>
@@ -212,12 +222,22 @@ const AppNavigator: React.FC = () => {
                     headerTintColor: '#FFF',
                     headerLeft: () => (
                       <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: 15 }}>
-                        <Text 
-                          style={{ color: '#FFF', fontSize: 16, marginRight: 15 }}
+                        <TouchableOpacity 
+                          style={{ 
+                            paddingHorizontal: 12, 
+                            paddingVertical: 8, 
+                            marginRight: 15,
+                            minWidth: 44,
+                            minHeight: 44,
+                            justifyContent: 'center',
+                            alignItems: 'center'
+                          }}
                           onPress={() => navigation.goBack()}
                         >
-                          ←
-                        </Text>
+                          <Text style={{ color: '#FFF', fontSize: 20 }}>
+                            ←
+                          </Text>
+                        </TouchableOpacity>
                         <Text style={{ color: '#FFF', fontSize: 14 }}>
                           {state.user?.username}
                         </Text>

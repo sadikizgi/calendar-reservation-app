@@ -215,7 +215,7 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>ReservaHub Master</Text>
+        <Text style={styles.title}>Reservas Master</Text>
         <TouchableOpacity style={styles.logoutButton} onPress={() => logout()}>
           <Text style={styles.logoutButtonText}>Çıkış</Text>
         </TouchableOpacity>

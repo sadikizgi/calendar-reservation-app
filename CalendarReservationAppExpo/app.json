@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "ReservaHub",
-    "slug": "reservahub",
+    "name": "Reservas",
+    "slug": "reservas",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -9,6 +9,7 @@ import {
   Dimensions,
   Alert,
   Modal,
+  TextInput,
 } from 'react-native';
 import { Calendar, LocaleConfig } from 'react-native-calendars';
 import { useFocusEffect } from '@react-navigation/native';
@@ -68,6 +69,9 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
   const [markedDates, setMarkedDates] = useState<any>({});
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceInput, setPriceInput] = useState('');
+  const [selectedDateForPrice, setSelectedDateForPrice] = useState('');
   const [currentProperty, setCurrentProperty] = useState<Property>(route.params.property);
   const { state } = useAuth();
   const { t, language } = useLanguage();
@@ -183,42 +187,36 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     return dates;
   };
 
-  const isDateInReservations = (date: string): boolean => {
+  const isDateInReservations = useCallback((date: string): boolean => {
     return reservations.some(reservation => {
       if (reservation.endDate) {
-        // Aralık rezervasyonu varsa
-        const reservationDates = getDatesBetween(reservation.date, reservation.endDate);
-        return reservationDates.includes(date);
+        return date >= reservation.date && date <= reservation.endDate;
       } else {
-        // Tek günlük rezervasyon
         return reservation.date === date;
       }
     });
-  };
+  }, [reservations]);
 
-  const updateMarkedDates = () => {
+  const updateMarkedDates = useCallback(() => {
     const marked: any = {};
     
     // Mevcut rezervasyonları işaretle
     reservations.forEach(reservation => {
+      const backgroundColor = getReservationColor(reservation.id);
+      
       if (reservation.endDate) {
         // Aralık rezervasyonu
         const reservationDates = getDatesBetween(reservation.date, reservation.endDate);
         reservationDates.forEach((date, index) => {
-          const isFirst = index === 0;
-          const isLast = index === reservationDates.length - 1;
-          const backgroundColor = getReservationColor(reservation.id);
-          
           marked[date] = {
             color: backgroundColor,
             textColor: '#333',
-            startingDay: isFirst,
-            endingDay: isLast,
+            startingDay: index === 0,
+            endingDay: index === reservationDates.length - 1,
           };
         });
       } else {
         // Tek günlük rezervasyon
-        const backgroundColor = getReservationColor(reservation.id);
         marked[reservation.date] = {
           color: backgroundColor,
           textColor: '#333',
@@ -232,65 +230,32 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     if (startDate && endDate) {
       const rangeDates = getDatesBetween(startDate, endDate);
       rangeDates.forEach((date, index) => {
-        const isFirst = index === 0;
-        const isLast = index === rangeDates.length - 1;
-        
         marked[date] = {
           ...marked[date],
           color: '#E3F2FD',
           textColor: '#007AFF',
-          startingDay: isFirst,
-          endingDay: isLast,
+          startingDay: index === 0,
+          endingDay: index === rangeDates.length - 1,
         };
       });
     } else if (startDate) {
-      // Sadece başlangıç tarihi seçili - marked dot ile işaretle (sayı kaymasın)
-      if (marked[startDate]?.color) {
-        // Rezerve tarihte başlangıç seçimi - period üzerine dot ekle
-        marked[startDate] = {
-          ...marked[startDate],
-          marked: true,
-          dotColor: '#007AFF',
-        };
-      } else {
-        // Boş tarihte başlangıç seçimi - yuvarlak period
-        marked[startDate] = {
-          ...marked[startDate],
-          color: '#B3D9FF',
-          textColor: '#000',
-          startingDay: true,
-          endingDay: true,
-        };
-      }
+      // Başlangıç tarihi seçili
+      marked[startDate] = marked[startDate]?.color 
+        ? { ...marked[startDate], marked: true, dotColor: '#007AFF' }
+        : { ...marked[startDate], color: '#B3D9FF', textColor: '#000', startingDay: true, endingDay: true };
     }
 
-    // Tek tarih seçimi (rezerve tarih dahil) - marked dot ile işaretle
+    // Tek tarih seçimi
     if (selectedDate) {
-      // Eğer seçilen tarih rezerve ise, hem period hem dot özelliklerini birleştir
-      if (marked[selectedDate]?.color) {
-        // Rezerve tarihte seçim - period üzerine dot ekle
-        marked[selectedDate] = {
-          ...marked[selectedDate],
-          marked: true,
-          dotColor: '#007AFF',
-        };
-      } else {
-        // Boş tarihte seçim - yuvarlak period
-        marked[selectedDate] = {
-          ...marked[selectedDate],
-          color: '#B3D9FF',
-          textColor: '#000',
-          startingDay: true,
-          endingDay: true,
-        };
-      }
+      marked[selectedDate] = marked[selectedDate]?.color 
+        ? { ...marked[selectedDate], marked: true, dotColor: '#007AFF' }
+        : { ...marked[selectedDate], color: '#B3D9FF', textColor: '#000', startingDay: true, endingDay: true };
     }
 
-    console.log('Marked dates:', JSON.stringify(marked, null, 2));
     setMarkedDates(marked);
-  };
+  }, [reservations, selectedDate, startDate, endDate]);
 
-  const onDayPress = (day: any) => {
+  const onDayPress = useCallback((day: any) => {
     const selectedDateStr = day.dateString;
     
     // Önce o tarihte rezervasyon var mı kontrol et
@@ -301,7 +266,6 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
       setStartDate('');
       setEndDate('');
       setSelectedDate(selectedDateStr);
-      console.log('Reserved date selected:', selectedDateStr);
       return;
     }
     
@@ -310,33 +274,40 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
       setStartDate(selectedDateStr);
       setEndDate('');
       setSelectedDate(selectedDateStr);
-      console.log('Start date selected:', selectedDateStr);
     } else if (startDate && !endDate) {
       // İkinci tıklama - bitiş tarihi
       if (selectedDateStr < startDate) {
-        // Eğer bitiş tarihi başlangıçtan küçükse, başlangıç yapı bitiş tarihi
+        // Geriye gidildi - yeni başlangıç tarihi yap
         setStartDate(selectedDateStr);
-        setEndDate(startDate);
+        setEndDate('');
+        setSelectedDate(selectedDateStr);
       } else {
-        setEndDate(selectedDateStr);
+        // İleriye gidildi - arada rezervasyon var mı kontrol et
+        const datesInRange = getDatesBetween(startDate, selectedDateStr);
+        const hasReservationInRange = datesInRange.some(date => isDateInReservations(date));
+        
+        if (hasReservationInRange) {
+          // Arada rezervasyon var - yeni başlangıç tarihi yap
+          setStartDate(selectedDateStr);
+          setEndDate('');
+          setSelectedDate(selectedDateStr);
+        } else {
+          // Arada rezervasyon yok - normal bitiş tarihi
+          setEndDate(selectedDateStr);
+          setSelectedDate('');
+        }
       }
-      setSelectedDate(''); // Tek tarih seçimini temizle
-      console.log('End date selected:', selectedDateStr);
-      console.log('Date range:', startDate, '-', selectedDateStr);
     }
-  };
+  }, [startDate, endDate, selectedDate, reservations]);
 
   const onMonthChange = (month: any) => {
     setCurrentMonth(new Date(month.year, month.month - 1));
   };
 
   const getReservationsForSelectedDate = () => {
-    console.log('Getting reservations for:', { startDate, endDate, selectedDate });
-    console.log('Total reservations:', reservations.length);
-    
     if (startDate && endDate) {
       // Aralık seçiliyse o aralıktaki rezervasyonları göster
-      const filtered = reservations.filter(r => {
+      return reservations.filter(r => {
         if (r.endDate) {
           // Aralık rezervasyonu - kesişim kontrolü
           return (r.date <= endDate && r.endDate >= startDate);
@@ -345,10 +316,8 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           return r.date >= startDate && r.date <= endDate;
         }
       });
-      console.log('Filtered reservations for range:', filtered.length);
-      return filtered;
     } else if (selectedDate) {
-      const filtered = reservations.filter(r => {
+      return reservations.filter(r => {
         if (r.endDate) {
           // Aralık rezervasyonu içinde mi?
           return selectedDate >= r.date && selectedDate <= r.endDate;
@@ -357,8 +326,6 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           return r.date === selectedDate;
         }
       });
-      console.log('Filtered reservations for single date:', filtered.length);
-      return filtered;
     }
     return [];
   };
@@ -369,16 +336,138 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     setSelectedDate('');
   };
 
+  // Fiyat yönetim fonksiyonları
+  const getPriceForDate = useCallback((date: string): number | null => {
+    if (!currentProperty.pricing) return null;
+    
+    // Önce o tarihe özel fiyat var mı bak
+    if (currentProperty.pricing.dailyPrices?.[date]) {
+      return currentProperty.pricing.dailyPrices[date];
+    }
+    
+    // Yoksa default fiyatı dön
+    return currentProperty.pricing.defaultPrice || null;
+  }, [currentProperty.pricing]);
+
+  const formatPrice = (price: number | null): string => {
+    if (!price) return '';
+    const currency = currentProperty.pricing?.currency || '₺';
+    return `${price}${currency}`;
+  };
+
+  // Bugünün tarihini memoize et
+  const todayString = useMemo(() => {
+    return new Date().toISOString().split('T')[0];
+  }, []);
+
+  const handleAddPrice = () => {
+    
+    if (selectedDate && !isDateInReservations(selectedDate)) {
+      // Tek tarih seçimi
+      setSelectedDateForPrice(selectedDate);
+      const existingPrice = getPriceForDate(selectedDate);
+      setPriceInput(existingPrice ? existingPrice.toString() : '');
+      setShowPriceModal(true);
+    } else if (startDate && endDate) {
+      // Tarih aralığı seçimi
+      const reservationsInRange = getReservationsForSelectedDate();
+      if (reservationsInRange.length === 0) {
+        // Tarih aralığını düzgün formatta set et
+        const rangeText = `${startDate} ile ${endDate} arası`;
+        setSelectedDateForPrice(rangeText);
+        setPriceInput('');
+        setShowPriceModal(true);
+      } else {
+        Alert.alert('Uyarı', 'Seçili aralıkta rezervasyon var');
+      }
+    } else {
+      Alert.alert('Uyarı', 'Lütfen geçerli bir tarih veya tarih aralığı seçin');
+    }
+  };
+
+  const saveDailyPrice = async () => {
+    if (!priceInput.trim()) {
+      Alert.alert('Hata', 'Fiyat giriniz');
+      return;
+    }
+
+    const price = parseFloat(priceInput);
+    if (isNaN(price) || price <= 0) {
+      Alert.alert('Hata', 'Geçerli bir fiyat giriniz');
+      return;
+    }
+
+    try {
+      const propertiesString = await AsyncStorage.getItem('properties');
+      if (propertiesString) {
+        const allProperties = JSON.parse(propertiesString);
+        const updatedProperties = allProperties.map((p: Property) => {
+          if (p.id === currentProperty.id) {
+            const updatedProperty = {
+              ...p,
+              pricing: {
+                ...p.pricing,
+                defaultPrice: p.pricing?.defaultPrice,
+                currency: p.pricing?.currency || '₺',
+                dailyPrices: {
+                  ...p.pricing?.dailyPrices,
+                }
+              }
+            };
+
+            // Tarih aralığı mı tek tarih mi kontrol et
+            if (selectedDateForPrice.includes('arası')) {
+              // "2024-01-01 ile 2024-01-05 arası" formatından tarihleri çıkar
+              const parts = selectedDateForPrice.split(' ile ');
+              const startDateStr = parts[0];
+              const endDateStr = parts[1].split(' arası')[0];
+              
+              const dates = getDatesBetween(startDateStr, endDateStr);
+              dates.forEach(date => {
+                updatedProperty.pricing.dailyPrices[date] = price;
+              });
+            } else {
+              // Tek tarih
+              updatedProperty.pricing.dailyPrices[selectedDateForPrice] = price;
+            }
+
+            return updatedProperty;
+          }
+          return p;
+        });
+
+        await AsyncStorage.setItem('properties', JSON.stringify(updatedProperties));
+        
+        // Current property'yi güncelle
+        const updatedCurrentProperty = updatedProperties.find((p: Property) => p.id === currentProperty.id);
+        if (updatedCurrentProperty) {
+          setCurrentProperty(updatedCurrentProperty);
+        }
+      }
+
+      setShowPriceModal(false);
+      setPriceInput('');
+      setSelectedDateForPrice('');
+      
+      const dateText = selectedDateForPrice.includes('arası') ? 'seçili tarihlere' : 'seçili tarihe';
+      Alert.alert('Başarılı', `Fiyat ${dateText} eklendi`);
+    } catch (error) {
+      console.error('Save price error:', error);
+      Alert.alert('Hata', 'Fiyat kaydedilemedi');
+    }
+  };
+
+
   const getSubUserName = (subUserId?: string): string => {
     if (!subUserId) return 'Ana Kullanıcı';
     const subUser = subUsers.find(su => su.id === subUserId);
     return subUser ? subUser.name : 'Bilinmeyen Kullanıcı';
   };
 
-  // Rezervasyon renkleri
+  // Rezervasyon renkleri - Genişletilmiş palet
   const reservationColors = [
     '#FFE5E5', // Açık kırmızı
-    '#E5F4FF', // Açık mavi
+    '#E5F4FF', // Açık mavi  
     '#E5FFE5', // Açık yeşil
     '#FFF5E5', // Açık turuncu
     '#F0E5FF', // Açık mor
@@ -389,18 +478,47 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     '#E5FFE0', // Açık lime
     '#FFE0E5', // Pastel pembe
     '#E0E5FF', // Pastel mavi
+    '#FFE5CC', // Açık şeftali
+    '#CCFFE5', // Açık nane
+    '#E5CCFF', // Açık eflatun
+    '#FFCCCC', // Pastel kırmızı
+    '#CCFFFF', // Açık cyan
+    '#FFFFCC', // Açık fildişi
+    '#CCFFCC', // Pastel yeşil
+    '#FFCCFF', // Pastel magenta
+    '#CCE5FF', // Bebek mavisi
+    '#FFE5FF', // Açık orkide
+    '#E5FFCC', // Açık kireç
+    '#FFCCF5', // Açık gül
+    '#CCF5FF', // Açık gökyüzü
+    '#F5FFCC', // Açık vanilya
+    '#FFCCEE', // Açık fuşya
+    '#CCFFF5', // Açık su yeşili
+    '#EECCFF', // Açık ametist
+    '#FFF5CC', // Açık krem
   ];
 
   const getReservationColor = (reservationId: string): string => {
-    // Rezervasyon ID'sinden hash oluştur
+    // Gelişmiş hash algoritması - daha iyi dağılım için
     let hash = 0;
+    let hash2 = 5381; // djb2 hash başlangıç değeri
+    
     for (let i = 0; i < reservationId.length; i++) {
       const char = reservationId.charCodeAt(i);
+      // Birinci hash (FNV-1a benzeri)
       hash = ((hash << 5) - hash) + char;
-      hash = hash & hash; // 32bit integer'a çevir
+      hash = hash & hash;
+      // İkinci hash (djb2)
+      hash2 = ((hash2 << 5) + hash2) + char;
     }
-    // Hash'i pozitif yap ve renk arrayindeki index'e çevir
-    const colorIndex = Math.abs(hash) % reservationColors.length;
+    
+    // İki hash'i kombine et
+    const combinedHash = Math.abs(hash ^ hash2);
+    // Property ID'sini de ekleyerek daha unique dağılım sağla
+    const propertyHash = property.id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    const finalHash = combinedHash + propertyHash;
+    
+    const colorIndex = Math.abs(finalHash) % reservationColors.length;
     return reservationColors[colorIndex];
   };
 
@@ -650,7 +768,8 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     const months = [];
     const today = new Date();
     
-    for (let i = -1; i <= 24; i++) {
+    // Geçmiş 3 ay + mevcut ay + gelecek 24 ay
+    for (let i = -3; i <= 24; i++) {
       const date = new Date(today.getFullYear(), today.getMonth() + i, 1);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
       months.push({
@@ -678,9 +797,86 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
         hideDayNames={false}
         markingType="period"
         firstDay={1}
+        dayComponent={({date, state}) => {
+          if (!date) return null;
+          
+          const dateString = date.dateString;
+          const isDisabled = state === 'disabled';
+          const markData = markedDates[dateString];
+          const isToday = dateString === todayString;
+          
+          // Hızlı stil hesaplama
+          let containerStyle = styles.dayContainer;
+          let textStyle = styles.dayText;
+          let priceStyle = styles.priceText;
+          
+          if (isDisabled) {
+            containerStyle = [containerStyle, styles.disabledDayContainer];
+            textStyle = [textStyle, styles.disabledDayText];
+            priceStyle = [priceStyle, styles.disabledPriceText];
+          } else if (markData?.color) {
+            // Rezervasyon stili
+            containerStyle = [containerStyle, {
+              backgroundColor: markData.color,
+              borderTopLeftRadius: markData.startingDay ? 8 : 0,
+              borderBottomLeftRadius: markData.startingDay ? 8 : 0,
+              borderTopRightRadius: markData.endingDay ? 8 : 0,
+              borderBottomRightRadius: markData.endingDay ? 8 : 0,
+              width: 60,
+              marginLeft: -11,
+              marginRight: -11,
+            }];
+            textStyle = [textStyle, styles.reservedDayText];
+            priceStyle = [priceStyle, styles.reservedPriceText];
+          } else if (selectedDate === dateString || markData?.marked) {
+            containerStyle = [containerStyle, styles.selectedDayContainer];
+            textStyle = [textStyle, styles.selectedDayText];
+            priceStyle = [priceStyle, styles.selectedPriceText];
+          }
+          
+          if (isToday) {
+            textStyle = [textStyle, styles.todayText];
+            priceStyle = [priceStyle, styles.todayPriceText];
+          }
+
+          return (
+            <View style={containerStyle}>
+              <TouchableOpacity 
+                style={styles.dayTouchable}
+                onPress={isDisabled ? undefined : () => onDayPress(date)}
+                disabled={isDisabled}
+              >
+                {isToday && <View style={styles.todayCircle} />}
+                <Text style={textStyle}>{date.day}</Text>
+                {/* Normal günlerde fiyatı içinde göster */}
+                {!isToday && currentProperty.pricing?.dailyPrices?.[dateString] && (
+                  <Text style={priceStyle}>
+                    {currentProperty.pricing.dailyPrices[dateString]}{currentProperty.pricing?.currency || '₺'}
+                  </Text>
+                )}
+                {!isToday && !currentProperty.pricing?.dailyPrices?.[dateString] && currentProperty.pricing?.defaultPrice && (
+                  <Text style={priceStyle}>
+                    {currentProperty.pricing.defaultPrice}{currentProperty.pricing?.currency || '₺'}
+                  </Text>
+                )}
+              </TouchableOpacity>
+              {/* Bugünün fiyatını yuvarlağın altında göster */}
+              {isToday && currentProperty.pricing?.dailyPrices?.[dateString] && (
+                <Text style={styles.todayPriceOutside}>
+                  {currentProperty.pricing.dailyPrices[dateString]}{currentProperty.pricing?.currency || '₺'}
+                </Text>
+              )}
+              {isToday && !currentProperty.pricing?.dailyPrices?.[dateString] && currentProperty.pricing?.defaultPrice && (
+                <Text style={styles.todayPriceOutside}>
+                  {currentProperty.pricing.defaultPrice}{currentProperty.pricing?.currency || '₺'}
+                </Text>
+              )}
+            </View>
+          );
+        }}
         theme={{
-          selectedDayBackgroundColor: '#B3D9FF', // Açık mavi
-          selectedDayTextColor: '#000', // Siyah yazı
+          selectedDayBackgroundColor: 'transparent',
+          selectedDayTextColor: '#000',
           todayTextColor: '#007AFF',
           dayTextColor: '#333',
           textDisabledColor: '#d9e1e8',
@@ -695,6 +891,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
               marginBottom: 7,
               flexDirection: 'row',
               justifyContent: 'space-around',
+              paddingHorizontal: 15,
             },
           },
           'stylesheet.day.period': {
@@ -822,12 +1019,16 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
         keyExtractor={item => item.key}
         style={styles.monthsList}
         showsVerticalScrollIndicator={true}
-        initialScrollIndex={1}
+        initialScrollIndex={3}
+        removeClippedSubviews={false}
         getItemLayout={(data, index) => ({
-          length: 350,
-          offset: 350 * index,
+          length: 450,
+          offset: 450 * index,
           index,
         })}
+        snapToInterval={450}
+        snapToAlignment="start"
+        decelerationRate="fast"
       />
 
       {(selectedDate || (startDate && endDate) || startDate || reservations.length > 0) && (
@@ -901,14 +1102,22 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
                 >
                   <Text style={styles.addButtonText}>Rezervasyon Yap</Text>
                 </TouchableOpacity>
+              ) : startDate ? (
+                // Sadece başlangıç tarihi seçiliyse
+                <TouchableOpacity 
+                  style={styles.addButton}
+                  onPress={handleAddReservation}
+                >
+                  <Text style={styles.addButtonText}>Tek Gün Rezervasyon</Text>
+                </TouchableOpacity>
               ) : null}
               
               {(startDate || selectedDate) && (
                 <TouchableOpacity 
-                  style={styles.clearButton}
-                  onPress={clearSelection}
+                  style={styles.priceButton}
+                  onPress={handleAddPrice}
                 >
-                  <Text style={styles.clearButtonText}>Temizle</Text>
+                  <Text style={styles.priceButtonText}>Fiyat Ekle</Text>
                 </TouchableOpacity>
               )}
             </View>
@@ -1118,6 +1327,51 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           </ScrollView>
         </View>
       </Modal>
+
+      {/* Fiyat Ekleme Modalı */}
+      <Modal
+        visible={showPriceModal}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <TouchableOpacity onPress={() => setShowPriceModal(false)}>
+              <Text style={styles.cancelButton}>İptal</Text>
+            </TouchableOpacity>
+            <Text style={styles.modalTitle}>Fiyat Ekle</Text>
+            <TouchableOpacity onPress={saveDailyPrice}>
+              <Text style={styles.saveButton}>Kaydet</Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.modalContent}>
+            <View style={styles.priceModalInfo}>
+              <Text style={styles.priceModalDate}>
+                📅 {selectedDateForPrice || 'Tarih seçilmedi'}
+              </Text>
+              {selectedDateForPrice && selectedDateForPrice.includes('arası') && (
+                <Text style={styles.priceModalSubtitle}>
+                  Bu tarih aralığındaki tüm günler için aynı fiyat uygulanacak
+                </Text>
+              )}
+            </View>
+            
+            <TextInput
+              style={styles.priceModalInput}
+              placeholder="Fiyat giriniz"
+              value={priceInput}
+              onChangeText={setPriceInput}
+              keyboardType="numeric"
+              autoFocus
+            />
+            
+            <Text style={styles.priceModalNote}>
+              Para birimi: {currentProperty.pricing?.currency || '₺'}
+            </Text>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 };
@@ -1190,7 +1444,6 @@ const styles = StyleSheet.create({
     borderTopColor: '#E0E0E0',
     paddingTop: 20,
     paddingBottom: 20,
-    marginTop: -80,
   },
   dateHeader: {
     flexDirection: 'row',
@@ -1272,14 +1525,14 @@ const styles = StyleSheet.create({
   },
   addButton: {
     backgroundColor: '#007AFF',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   addButtonText: {
     color: '#FFF',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
   },
   clearButton: {
     backgroundColor: '#FF6B6B',
@@ -1294,14 +1547,14 @@ const styles = StyleSheet.create({
   },
   manageButton: {
     backgroundColor: '#FF9500',
-    paddingHorizontal: 15,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   manageButtonText: {
     color: '#FFF',
     fontWeight: 'bold',
-    fontSize: 14,
+    fontSize: 12,
   },
   reservationsList: {
     flex: 1,
@@ -1479,6 +1732,167 @@ const styles = StyleSheet.create({
   },
   dangerText: {
     color: '#FF3B30',
+  },
+  // Fiyat butonu stili
+  priceButton: {
+    backgroundColor: '#00B383',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+    marginLeft: 8,
+  },
+  priceButtonText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    fontSize: 12,
+  },
+  // Fiyat modalı stilleri
+  priceModalInfo: {
+    backgroundColor: '#F8F9FA',
+    padding: 20,
+    borderRadius: 12,
+    marginBottom: 30,
+    alignItems: 'center',
+  },
+  priceModalDate: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#333',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  priceModalSubtitle: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+    marginBottom: 20,
+    fontStyle: 'italic',
+  },
+  priceModalInput: {
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    borderRadius: 8,
+    padding: 15,
+    fontSize: 18,
+    textAlign: 'center',
+    marginBottom: 20,
+    backgroundColor: '#FFF',
+  },
+  priceModalNote: {
+    fontSize: 14,
+    color: '#666',
+    textAlign: 'center',
+  },
+  // Day component styles
+  dayContainer: {
+    width: 38,
+    height: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'transparent',
+  },
+  dayTouchable: {
+    width: '100%',
+    height: '100%',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  todayContainer: {
+    backgroundColor: '#E3F2FD',
+  },
+  selectedDayContainer: {
+    backgroundColor: '#B3D9FF',
+  },
+  startingDayContainer: {
+    backgroundColor: '#E3F2FD',
+    borderTopLeftRadius: 8,
+    borderBottomLeftRadius: 8,
+  },
+  endingDayContainer: {
+    backgroundColor: '#E3F2FD',
+    borderTopRightRadius: 8,
+    borderBottomRightRadius: 8,
+  },
+  periodMiddleContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 0,
+  },
+  reservedDayContainer: {
+    backgroundColor: '#FFE6E6',
+    borderRadius: 0, // Reservations should be continuous
+  },
+  disabledDayContainer: {
+    opacity: 0.3,
+  },
+  dayText: {
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#333',
+    textAlign: 'center',
+  },
+  todayText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    zIndex: 2,
+  },
+  selectedDayText: {
+    color: '#000',
+    fontWeight: 'bold',
+  },
+  reservedDayText: {
+    color: '#333',
+  },
+  disabledDayText: {
+    color: '#d9e1e8',
+  },
+  priceText: {
+    fontSize: 9,
+    color: '#666',
+    fontWeight: 'bold',
+    textAlign: 'center',
+    marginTop: 2,
+    lineHeight: 10,
+  },
+  selectedPriceText: {
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  reservedPriceText: {
+    color: '#666',
+    fontWeight: 'bold',
+  },
+  disabledPriceText: {
+    color: '#d9e1e8',
+  },
+  todayCircle: {
+    position: 'absolute',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#000',
+    top: '50%',
+    left: '50%',
+    marginTop: -11,
+    marginLeft: -12,
+    zIndex: 1,
+  },
+  todayPriceText: {
+    color: '#FFF',
+    fontWeight: 'bold',
+    zIndex: 2,
+  },
+  todayPriceOutside: {
+    color: '#666',
+    fontWeight: 'bold',
+    position: 'absolute',
+    bottom: 0,
+    left: '50%',
+    marginLeft: -25,
+    width: 50,
+    textAlign: 'center',
+    zIndex: 3,
+    fontSize: 9,
+    lineHeight: 10,
   },
 });
 

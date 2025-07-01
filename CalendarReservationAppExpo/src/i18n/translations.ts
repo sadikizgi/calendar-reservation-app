@@ -1,7 +1,7 @@
 export const translations = {
   tr: {
     // App Name & Branding
-    appName: 'ReservaHub',
+    appName: 'Reservas',
     appTagline: 'Rezervasyon Yönetimi',
     categories: {
       house: 'Ev',
@@ -95,7 +95,7 @@ export const translations = {
     dayNamesShort: ['Paz', 'Pzt', 'Sal', 'Çar', 'Per', 'Cum', 'Cmt'],
 
     // Master Dashboard
-    systemManagement: 'ReservaHub Master',
+    systemManagement: 'Reservas Master',
     pendingUsers: 'Onay Bekleyen',
     activeUsers: 'Aktif Kullanıcı',
     pendingApprovals: 'Onay Bekleyen Kullanıcılar',
@@ -147,7 +147,7 @@ export const translations = {
 
   en: {
     // App Name & Branding
-    appName: 'ReservaHub',
+    appName: 'Reservas',
     appTagline: 'Reservation Management',
     categories: {
       house: 'House',
@@ -241,7 +241,7 @@ export const translations = {
     dayNamesShort: ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
 
     // Master Dashboard
-    systemManagement: 'ReservaHub Master',
+    systemManagement: 'Reservas Master',
     pendingUsers: 'Pending Users',
     activeUsers: 'Active Users',
     pendingApprovals: 'Pending User Approvals',

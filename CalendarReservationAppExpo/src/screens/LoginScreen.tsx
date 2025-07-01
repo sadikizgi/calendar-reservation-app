@@ -174,6 +174,14 @@ const LoginScreen: React.FC = () => {
           </Text>
         </TouchableOpacity>
       </View>
+      
+      {/* Footer with version and developer info */}
+      <View style={styles.footer}>
+        <Text style={styles.footerText}>
+          Created by <Text style={styles.brandHighlight}>Reservas</Text>
+        </Text>
+        <Text style={styles.versionText}>v1.0.0</Text>
+      </View>
     </KeyboardAvoidingView>
   );
 };
@@ -301,6 +309,30 @@ const styles = StyleSheet.create({
   linkText: {
     color: '#007AFF',
     fontSize: 14,
+  },
+  footer: {
+    position: 'absolute',
+    bottom: 30,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    paddingHorizontal: 20,
+  },
+  footerText: {
+    fontSize: 12,
+    color: '#999',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  brandHighlight: {
+    color: '#007AFF',
+    fontWeight: '600',
+  },
+  versionText: {
+    fontSize: 10,
+    color: '#CCC',
+    fontWeight: '300',
+    letterSpacing: 0.5,
   },
 });
 

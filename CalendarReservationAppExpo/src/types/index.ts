@@ -25,6 +25,11 @@ export interface Property {
     requireApproval?: boolean;
     maxAdvanceDays?: number;
   };
+  pricing?: {
+    defaultPrice?: number;
+    currency?: string;
+    dailyPrices?: { [date: string]: number }; // YYYY-MM-DD format
+  };
   createdAt: Date;
 }
 
