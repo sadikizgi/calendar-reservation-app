@@ -22,22 +22,22 @@ const LoginScreen: React.FC = () => {
   const { t, tNested, language, setLanguage } = useLanguage();
 
   const handleSubmit = async () => {
-    if (!username.trim() || !password.trim()) {
+    if (!email.trim() || !password.trim()) {
       Alert.alert(t('error'), t('fieldsRequired'));
       return;
     }
 
-    if (!isLoginMode && !email.trim()) {
-      Alert.alert(t('error'), t('emailRequired'));
+    if (!isLoginMode && !username.trim()) {
+      Alert.alert(t('error'), 'İşletme adı gerekli');
       return;
     }
 
     try {
       let success = false;
       if (isLoginMode) {
-        success = await login(username, password);
+        success = await login(email, password);
       } else {
-        success = await register(username, email, password);
+        success = await register(email, password, username);
       }
 
       if (!success) {
@@ -60,8 +60,8 @@ const LoginScreen: React.FC = () => {
         setUsername('');
         setPassword('');
       }
-    } catch (error) {
-      Alert.alert(t('error'), t('genericError'));
+    } catch (error: any) {
+      Alert.alert(t('error'), error.message || t('genericError'));
     }
   };
 
@@ -117,9 +117,10 @@ const LoginScreen: React.FC = () => {
         
         <TextInput
           style={styles.input}
-          placeholder={t('businessName')}
-          value={username}
-          onChangeText={setUsername}
+          placeholder={t('email')}
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
           autoCapitalize="none"
           autoCorrect={false}
           spellCheck={false}
@@ -128,10 +129,9 @@ const LoginScreen: React.FC = () => {
         {!isLoginMode && (
           <TextInput
             style={styles.input}
-            placeholder={t('email')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
+            placeholder={t('businessName')}
+            value={username}
+            onChangeText={setUsername}
             autoCapitalize="none"
             autoCorrect={false}
             spellCheck={false}

@@ -183,7 +183,6 @@ const AppNavigator: React.FC = () => {
                           style={{ 
                             paddingHorizontal: 12, 
                             paddingVertical: 8, 
-                            marginRight: 15,
                             minWidth: 44,
                             minHeight: 44,
                             justifyContent: 'center',
@@ -195,9 +194,6 @@ const AppNavigator: React.FC = () => {
                             ←
                           </Text>
                         </TouchableOpacity>
-                        <Text style={{ color: '#FFF', fontSize: 14 }}>
-                          {state.user?.username}
-                        </Text>
                       </View>
                     ),
                     headerRight: () => (

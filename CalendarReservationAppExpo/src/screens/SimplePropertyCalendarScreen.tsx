@@ -17,6 +17,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property, Reservation } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import firebaseService from '../services/firebaseService';
 
 const { width, height } = Dimensions.get('window');
 
@@ -109,7 +110,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     updateMarkedDates();
   }, [reservations, selectedDate, startDate, endDate]);
 
-  // Navigation başlığını güncelle
+  // Navigation başlığını ev ismi yap
   useEffect(() => {
     navigation.setOptions({
       title: currentProperty.name,
@@ -118,20 +119,37 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
 
   const loadReservations = async () => {
     try {
-      const reservationsString = await AsyncStorage.getItem('reservations');
-      console.log('Raw reservations from storage:', reservationsString);
-      if (reservationsString) {
-        const allReservations = JSON.parse(reservationsString);
-        console.log('All reservations:', allReservations.length);
-        const propertyReservations = allReservations.filter(
+      if (!state.user?.id) return;
+      
+      console.log('Loading reservations for user:', state.user.id, 'property:', property.id);
+      
+      if (state.user.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const reservationsString = await AsyncStorage.getItem('reservations');
+        console.log('Raw reservations from AsyncStorage:', reservationsString);
+        if (reservationsString) {
+          const allReservations = JSON.parse(reservationsString);
+          console.log('All reservations:', allReservations.length);
+          const propertyReservations = allReservations.filter(
+            (r: Reservation) => r.propertyId === property.id
+          );
+          console.log('Property reservations for', property.id, ':', propertyReservations.length);
+          setReservations(propertyReservations);
+        } else {
+          console.log('No reservations in AsyncStorage');
+          setReservations([]);
+        }
+      } else {
+        // Firebase user - Firebase'den çek
+        const allUserReservations = await firebaseService.getReservations(state.user.id);
+        console.log('All Firebase reservations:', allUserReservations.length);
+        
+        const propertyReservations = allUserReservations.filter(
           (r: Reservation) => r.propertyId === property.id
         );
         console.log('Property reservations for', property.id, ':', propertyReservations.length);
         console.log('Property reservations:', propertyReservations);
         setReservations(propertyReservations);
-      } else {
-        console.log('No reservations in storage');
-        setReservations([]);
       }
     } catch (error) {
       console.error('Load reservations error:', error);
@@ -157,15 +175,28 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
 
   const loadProperty = async () => {
     try {
-      const propertiesString = await AsyncStorage.getItem('properties');
-      if (propertiesString) {
-        const allProperties = JSON.parse(propertiesString);
-        const updatedProperty = allProperties.find(
-          (p: Property) => p.id === property.id
-        );
-        if (updatedProperty) {
-          console.log('Property updated:', updatedProperty);
-          setCurrentProperty(updatedProperty);
+      if (state.user?.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const propertiesString = await AsyncStorage.getItem('properties');
+        if (propertiesString) {
+          const allProperties = JSON.parse(propertiesString);
+          const updatedProperty = allProperties.find(
+            (p: Property) => p.id === property.id
+          );
+          if (updatedProperty) {
+            console.log('Property updated:', updatedProperty);
+            setCurrentProperty(updatedProperty);
+          }
+        }
+      } else {
+        // Firebase user - Firebase'den güncel property'yi çek
+        if (state.user?.id) {
+          const userProperties = await firebaseService.getProperties(state.user.id);
+          const updatedProperty = userProperties.find(p => p.id === property.id);
+          if (updatedProperty) {
+            console.log('Firebase property updated:', updatedProperty);
+            setCurrentProperty(updatedProperty);
+          }
         }
       }
     } catch (error) {
@@ -398,59 +429,102 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
     }
 
     try {
-      const propertiesString = await AsyncStorage.getItem('properties');
-      if (propertiesString) {
-        const allProperties = JSON.parse(propertiesString);
-        const updatedProperties = allProperties.map((p: Property) => {
-          if (p.id === currentProperty.id) {
-            const updatedProperty = {
-              ...p,
-              pricing: {
-                ...p.pricing,
-                defaultPrice: p.pricing?.defaultPrice,
-                currency: p.pricing?.currency || '₺',
-                dailyPrices: {
-                  ...p.pricing?.dailyPrices,
+      let updatedProperty: Property = currentProperty;
+      
+      if (state.user?.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const propertiesString = await AsyncStorage.getItem('properties');
+        if (propertiesString) {
+          const allProperties = JSON.parse(propertiesString);
+          const updatedProperties = allProperties.map((p: Property) => {
+            if (p.id === currentProperty.id) {
+              const updated = {
+                ...p,
+                pricing: {
+                  ...p.pricing,
+                  defaultPrice: p.pricing?.defaultPrice,
+                  currency: p.pricing?.currency || '₺',
+                  dailyPrices: {
+                    ...p.pricing?.dailyPrices,
+                  }
                 }
+              };
+
+              // Tarih aralığı mı tek tarih mi kontrol et
+              if (selectedDateForPrice.includes('arası')) {
+                // "2024-01-01 ile 2024-01-05 arası" formatından tarihleri çıkar
+                const parts = selectedDateForPrice.split(' ile ');
+                const startDateStr = parts[0];
+                const endDateStr = parts[1].split(' arası')[0];
+                
+                const dates = getDatesBetween(startDateStr, endDateStr);
+                dates.forEach(date => {
+                  updated.pricing.dailyPrices[date] = price;
+                });
+              } else {
+                // Tek tarih
+                updated.pricing.dailyPrices[selectedDateForPrice] = price;
               }
-            };
 
-            // Tarih aralığı mı tek tarih mi kontrol et
-            if (selectedDateForPrice.includes('arası')) {
-              // "2024-01-01 ile 2024-01-05 arası" formatından tarihleri çıkar
-              const parts = selectedDateForPrice.split(' ile ');
-              const startDateStr = parts[0];
-              const endDateStr = parts[1].split(' arası')[0];
-              
-              const dates = getDatesBetween(startDateStr, endDateStr);
-              dates.forEach(date => {
-                updatedProperty.pricing.dailyPrices[date] = price;
-              });
-            } else {
-              // Tek tarih
-              updatedProperty.pricing.dailyPrices[selectedDateForPrice] = price;
+              return updated;
             }
+            return p;
+          });
 
-            return updatedProperty;
+          await AsyncStorage.setItem('properties', JSON.stringify(updatedProperties));
+          const foundProperty = updatedProperties.find((p: Property) => p.id === currentProperty.id);
+          if (foundProperty) {
+            updatedProperty = foundProperty;
           }
-          return p;
-        });
-
-        await AsyncStorage.setItem('properties', JSON.stringify(updatedProperties));
-        
-        // Current property'yi güncelle
-        const updatedCurrentProperty = updatedProperties.find((p: Property) => p.id === currentProperty.id);
-        if (updatedCurrentProperty) {
-          setCurrentProperty(updatedCurrentProperty);
         }
-      }
+      } else {
+        // Firebase user - Firebase'de güncelle
+        const updated = {
+          ...currentProperty,
+          pricing: {
+            ...currentProperty.pricing,
+            defaultPrice: currentProperty.pricing?.defaultPrice,
+            currency: currentProperty.pricing?.currency || '₺',
+            dailyPrices: {
+              ...currentProperty.pricing?.dailyPrices,
+            }
+          }
+        };
 
+        // Tarih aralığı mı tek tarih mi kontrol et
+        if (selectedDateForPrice.includes('arası')) {
+          // "2024-01-01 ile 2024-01-05 arası" formatından tarihleri çıkar
+          const parts = selectedDateForPrice.split(' ile ');
+          const startDateStr = parts[0];
+          const endDateStr = parts[1].split(' arası')[0];
+          
+          const dates = getDatesBetween(startDateStr, endDateStr);
+          dates.forEach(date => {
+            updated.pricing.dailyPrices[date] = price;
+          });
+        } else {
+          // Tek tarih
+          updated.pricing.dailyPrices[selectedDateForPrice] = price;
+        }
+
+        await firebaseService.updateProperty(currentProperty.id, { pricing: updated.pricing });
+        updatedProperty = updated;
+      }
+      
+      // Current property'yi güncelle
+      setCurrentProperty(updatedProperty);
+      
+      // Modal'ı kapat
       setShowPriceModal(false);
       setPriceInput('');
       setSelectedDateForPrice('');
       
       const dateText = selectedDateForPrice.includes('arası') ? 'seçili tarihlere' : 'seçili tarihe';
       Alert.alert('Başarılı', `Fiyat ${dateText} eklendi`);
+      
+      // Property'yi yeniden yükle ve takvimi yenile
+      await loadProperty();
+      updateMarkedDates();
     } catch (error) {
       console.error('Save price error:', error);
       Alert.alert('Hata', 'Fiyat kaydedilemedi');
@@ -790,7 +864,6 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
         current={`${item.year}-${String(item.month).padStart(2, '0')}-01`}
         onDayPress={onDayPress}
         markedDates={markedDates}
-        minDate={new Date().toISOString().split('T')[0]}
         hideArrows
         hideExtraDays
         disableMonthChange
@@ -802,6 +875,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           
           const dateString = date.dateString;
           const isDisabled = state === 'disabled';
+          const isPastDate = dateString < todayString;
           const markData = markedDates[dateString];
           const isToday = dateString === todayString;
           
@@ -810,7 +884,8 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
           let textStyle = styles.dayText;
           let priceStyle = styles.priceText;
           
-          if (isDisabled) {
+          if (isPastDate && !markData?.color) {
+            // Sadece geçmiş günlerde ve rezervasyon yoksa soluklaştır
             containerStyle = [containerStyle, styles.disabledDayContainer];
             textStyle = [textStyle, styles.disabledDayText];
             priceStyle = [priceStyle, styles.disabledPriceText];
@@ -843,8 +918,8 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
             <View style={containerStyle}>
               <TouchableOpacity 
                 style={styles.dayTouchable}
-                onPress={isDisabled ? undefined : () => onDayPress(date)}
-                disabled={isDisabled}
+                onPress={(isPastDate && !markData?.color) ? undefined : () => onDayPress(date)}
+                disabled={isPastDate && !markData?.color}
               >
                 {isToday && <View style={styles.todayCircle} />}
                 <Text style={textStyle}>{date.day}</Text>
@@ -990,7 +1065,7 @@ const SimplePropertyCalendarScreen: React.FC<SimplePropertyCalendarScreenProps> 
 
   return (
     <View style={styles.container}>
-      <View style={styles.propertyInfo}>
+        <View style={styles.propertyInfo}>
         <View style={styles.propertyHeader}>
           <View style={styles.propertyMainInfo}>
             <Text style={styles.propertyName}>
@@ -1822,7 +1897,7 @@ const styles = StyleSheet.create({
     borderRadius: 0, // Reservations should be continuous
   },
   disabledDayContainer: {
-    opacity: 0.3,
+    opacity: 0.7,
   },
   dayText: {
     fontSize: 16,

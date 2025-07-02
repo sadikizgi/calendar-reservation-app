@@ -10,9 +10,12 @@ import {
   Switch,
 } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { Reservation, SubUser } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import firebaseService from '../services/firebaseService';
 
 interface AddReservationScreenProps {
   navigation: any;
@@ -50,13 +53,35 @@ const AddReservationScreen: React.FC<AddReservationScreenProps> = ({ navigation,
 
   const loadSubUsers = async () => {
     try {
-      const subUsersString = await AsyncStorage.getItem('subUsers');
-      if (subUsersString) {
-        const allSubUsers = JSON.parse(subUsersString);
-        const userSubUsers = allSubUsers.filter(
-          (su: SubUser) => su.parentUserId === state.user?.id
+      // Önce Firebase'den dene
+      try {
+        const subUsersQuery = query(
+          collection(db, 'subUsers'),
+          where('parentUserId', '==', state.user?.id)
         );
-        setSubUsers(userSubUsers);
+        const subUsersSnapshot = await getDocs(subUsersQuery);
+        const firebaseSubUsers = subUsersSnapshot.docs.map(doc => ({
+          id: doc.id,
+          name: doc.data().name,
+          parentUserId: doc.data().parentUserId,
+          createdAt: doc.data().createdAt?.toDate() || new Date()
+        }));
+
+        console.log('Firebase sub users loaded for reservation:', firebaseSubUsers);
+        setSubUsers(firebaseSubUsers);
+      } catch (firebaseError) {
+        console.log('Firebase sub users error, falling back to AsyncStorage:', firebaseError);
+        
+        // Firebase hatası varsa AsyncStorage'dan yükle
+        const subUsersString = await AsyncStorage.getItem('subUsers');
+        if (subUsersString) {
+          const allSubUsers = JSON.parse(subUsersString);
+          const userSubUsers = allSubUsers.filter(
+            (su: SubUser) => su.parentUserId === state.user?.id
+          );
+          console.log('AsyncStorage sub users loaded for reservation:', userSubUsers);
+          setSubUsers(userSubUsers);
+        }
       }
     } catch (error) {
       console.error('Load sub users error:', error);
@@ -80,65 +105,121 @@ const AddReservationScreen: React.FC<AddReservationScreenProps> = ({ navigation,
     }
 
     try {
-      if (editingReservation) {
-        // Düzenleme modu
-        const updatedReservation: Reservation = {
-          ...editingReservation,
-          title: title.trim(),
-          description: description.trim() || undefined,
-          startTime: useTime ? startTime : undefined,
-          endTime: useTime ? endTime : undefined,
-          subUserId: selectedSubUser || undefined,
-          updatedAt: new Date(),
-        };
+      if (state.user?.role === 'master') {
+        // Master user - AsyncStorage kullan
+        if (editingReservation) {
+          // Düzenleme modu
+          const updatedReservation: Reservation = {
+            ...editingReservation,
+            title: title.trim(),
+            description: description.trim() || undefined,
+            startTime: useTime ? startTime : undefined,
+            endTime: useTime ? endTime : undefined,
+            subUserId: selectedSubUser || undefined,
+            updatedAt: new Date(),
+          };
 
-        const existingReservationsString = await AsyncStorage.getItem('reservations');
-        const existingReservations = existingReservationsString 
-          ? JSON.parse(existingReservationsString) 
-          : [];
+          const existingReservationsString = await AsyncStorage.getItem('reservations');
+          const existingReservations = existingReservationsString 
+            ? JSON.parse(existingReservationsString) 
+            : [];
 
-        const updatedReservations = existingReservations.map((r: Reservation) =>
-          r.id === editingReservation.id ? updatedReservation : r
-        );
-        await AsyncStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          const updatedReservations = existingReservations.map((r: Reservation) =>
+            r.id === editingReservation.id ? updatedReservation : r
+          );
+          await AsyncStorage.setItem('reservations', JSON.stringify(updatedReservations));
 
-        console.log('Reservation updated successfully:', updatedReservation);
-        
-        Alert.alert('Başarılı', 'Rezervasyon güncellendi', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+          console.log('Reservation updated successfully in AsyncStorage:', updatedReservation);
+        } else {
+          // Yeni rezervasyon
+          const newReservation: Reservation = {
+            id: Date.now().toString(),
+            title: title.trim(),
+            description: description.trim() || undefined,
+            date: selectedDate,
+            endDate: endDate || undefined,
+            startTime: useTime ? startTime : undefined,
+            endTime: useTime ? endTime : undefined,
+            userId: state.user!.id,
+            propertyId: propertyId || '1',
+            subUserId: selectedSubUser || undefined,
+            status: 'confirmed',
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
+
+          const existingReservationsString = await AsyncStorage.getItem('reservations');
+          const existingReservations = existingReservationsString 
+            ? JSON.parse(existingReservationsString) 
+            : [];
+
+          const updatedReservations = [...existingReservations, newReservation];
+          await AsyncStorage.setItem('reservations', JSON.stringify(updatedReservations));
+
+          console.log('Reservation saved successfully to AsyncStorage:', newReservation);
+        }
       } else {
-        // Yeni rezervasyon
-        const newReservation: Reservation = {
-          id: Date.now().toString(),
-          title: title.trim(),
-          description: description.trim() || undefined,
-          date: selectedDate,
-          endDate: endDate || undefined,
-          startTime: useTime ? startTime : undefined,
-          endTime: useTime ? endTime : undefined,
-          userId: state.user!.id,
-          propertyId: propertyId || '1',
-          subUserId: selectedSubUser || undefined,
-          status: 'confirmed',
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+        // Firebase user - Firebase kullan
+        if (editingReservation) {
+          // Düzenleme modu - undefined değerleri filtrele
+          const updates: any = {
+            title: title.trim(),
+            updatedAt: new Date(),
+          };
 
-        const existingReservationsString = await AsyncStorage.getItem('reservations');
-        const existingReservations = existingReservationsString 
-          ? JSON.parse(existingReservationsString) 
-          : [];
+          // Sadece değeri olan alanları ekle
+          if (description.trim()) {
+            updates.description = description.trim();
+          }
+          if (useTime && startTime) {
+            updates.startTime = startTime;
+          }
+          if (useTime && endTime) {
+            updates.endTime = endTime;
+          }
+          if (selectedSubUser) {
+            updates.subUserId = selectedSubUser;
+          }
 
-        const updatedReservations = [...existingReservations, newReservation];
-        await AsyncStorage.setItem('reservations', JSON.stringify(updatedReservations));
+          await firebaseService.updateReservation(editingReservation.id, updates);
+          console.log('Reservation updated successfully in Firebase:', editingReservation.id);
+        } else {
+          // Yeni rezervasyon - undefined değerleri filtrele
+          const newReservation: any = {
+            title: title.trim(),
+            date: selectedDate,
+            userId: state.user!.id,
+            propertyId: propertyId || '1',
+            status: 'confirmed' as const,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          };
 
-        console.log('Reservation saved successfully:', newReservation);
-        
-        Alert.alert('Başarılı', 'Rezervasyon oluşturuldu', [
-          { text: 'OK', onPress: () => navigation.goBack() }
-        ]);
+          // Sadece değeri olan alanları ekle
+          if (description.trim()) {
+            newReservation.description = description.trim();
+          }
+          if (endDate) {
+            newReservation.endDate = endDate;
+          }
+          if (useTime && startTime) {
+            newReservation.startTime = startTime;
+          }
+          if (useTime && endTime) {
+            newReservation.endTime = endTime;
+          }
+          if (selectedSubUser) {
+            newReservation.subUserId = selectedSubUser;
+          }
+
+          const reservationId = await firebaseService.addReservation(state.user.id, newReservation);
+          console.log('Reservation saved successfully to Firebase:', reservationId);
+        }
       }
+      
+      Alert.alert('Başarılı', editingReservation ? 'Rezervasyon güncellendi' : 'Rezervasyon oluşturuldu', [
+        { text: 'OK', onPress: () => navigation.goBack() }
+      ]);
     } catch (error) {
       console.error('Save reservation error:', error);
       Alert.alert('Hata', 'Rezervasyon kaydedilemedi');

@@ -16,6 +16,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property, Reservation } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import firebaseService from '../services/firebaseService';
 
 const { width } = Dimensions.get('window');
 const CARD_WIDTH = (width - 80) / 2; // 80 = container padding (40) + row padding (20) + spacing (20)
@@ -50,15 +51,27 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
 
   const loadProperties = async () => {
     try {
-      const propertiesString = await AsyncStorage.getItem('properties');
-      if (propertiesString) {
-        const allProperties = JSON.parse(propertiesString);
-        const userProperties = allProperties.filter(
-          (p: Property) => p.userId === state.user?.id
-        );
-        setProperties(userProperties);
+      if (!state.user?.id) return;
+      
+      console.log('Loading properties for user:', state.user.id);
+      
+      if (state.user.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const propertiesString = await AsyncStorage.getItem('properties');
+        if (propertiesString) {
+          const allProperties = JSON.parse(propertiesString);
+          const userProperties = allProperties.filter(
+            (p: Property) => p.userId === state.user?.id
+          );
+          setProperties(userProperties);
+        } else {
+          setProperties([]);
+        }
       } else {
-        setProperties([]);
+        // Firebase user - Firebase'den çek
+        const userProperties = await firebaseService.getProperties(state.user.id);
+        console.log('Firebase properties loaded:', userProperties.length);
+        setProperties(userProperties);
       }
     } catch (error) {
       console.error('Load properties error:', error);
@@ -67,12 +80,24 @@ const CalendarScreen: React.FC<CalendarScreenProps> = ({ navigation }) => {
 
   const loadReservations = async () => {
     try {
-      const reservationsString = await AsyncStorage.getItem('reservations');
-      if (reservationsString) {
-        const allReservations = JSON.parse(reservationsString);
-        const userReservations = allReservations.filter(
-          (r: Reservation) => r.userId === state.user?.id
-        );
+      if (!state.user?.id) return;
+      
+      console.log('Loading reservations for user:', state.user.id);
+      
+      if (state.user.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const reservationsString = await AsyncStorage.getItem('reservations');
+        if (reservationsString) {
+          const allReservations = JSON.parse(reservationsString);
+          const userReservations = allReservations.filter(
+            (r: Reservation) => r.userId === state.user?.id
+          );
+          setReservations(userReservations);
+        }
+      } else {
+        // Firebase user - Firebase'den çek
+        const userReservations = await firebaseService.getReservations(state.user.id);
+        console.log('Firebase reservations loaded:', userReservations.length);
         setReservations(userReservations);
       }
     } catch (error) {

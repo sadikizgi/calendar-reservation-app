@@ -112,6 +112,13 @@ export const translations = {
     deactivate: 'Devre Dışı',
     noApprovedUsers: 'Henüz onaylanmış kullanıcı yok',
     loadingUsers: 'Kullanıcılar yükleniyor...',
+    toggleUserStatus: 'Kullanıcı Durumunu Değiştir',
+    activateUser: 'Aktif Et',
+    deactivateUserAction: 'Pasife Al',
+    userActivated: 'kullanıcısı aktif edildi',
+    userDeactivatedAction: 'kullanıcısı pasife alındı',
+    activeStatus: 'Aktif',
+    inactiveStatus: 'Pasif',
 
     // User Management
     users: 'Kullanıcılar',
@@ -258,6 +265,13 @@ export const translations = {
     deactivate: 'Deactivate',
     noApprovedUsers: 'No approved users yet',
     loadingUsers: 'Loading users...',
+    toggleUserStatus: 'Change User Status',
+    activateUser: 'Activate',
+    deactivateUserAction: 'Deactivate',
+    userActivated: 'user activated',
+    userDeactivatedAction: 'user deactivated',
+    activeStatus: 'Active',
+    inactiveStatus: 'Inactive',
 
     // User Management
     users: 'Users',

@@ -14,6 +14,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Property } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
+import firebaseService from '../services/firebaseService';
 
 interface PropertyManagementScreenProps {
   navigation: any;
@@ -62,17 +63,30 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
 
   const loadProperties = async () => {
     try {
-      const propertiesString = await AsyncStorage.getItem('properties');
-      console.log('Loading properties from AsyncStorage:', propertiesString);
-      if (propertiesString) {
-        const allProperties = JSON.parse(propertiesString);
-        const userProperties = allProperties.filter(
-          (p: Property) => p.userId === state.user?.id
-        );
-        console.log('User properties found:', userProperties.length);
-        setProperties(userProperties);
+      if (!state.user?.id) return;
+      
+      console.log('Loading properties for user:', state.user.id, 'role:', state.user.role);
+      
+      if (state.user.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const propertiesString = await AsyncStorage.getItem('properties');
+        console.log('Loading properties from AsyncStorage:', propertiesString);
+        if (propertiesString) {
+          const allProperties = JSON.parse(propertiesString);
+          const userProperties = allProperties.filter(
+            (p: Property) => p.userId === state.user?.id
+          );
+          console.log('User properties found:', userProperties.length);
+          setProperties(userProperties);
+        } else {
+          console.log('No properties found in AsyncStorage');
+          setProperties([]);
+        }
       } else {
-        console.log('No properties found in AsyncStorage');
+        // Firebase user - Firebase'den çek
+        const userProperties = await firebaseService.getProperties(state.user.id);
+        console.log('Firebase properties loaded:', userProperties.length);
+        setProperties(userProperties);
       }
     } catch (error) {
       console.error('Load properties error:', error);
@@ -91,35 +105,55 @@ const PropertyManagementScreen: React.FC<PropertyManagementScreenProps> = ({ nav
     }
 
     try {
-      const newProperty: Property = {
-        id: Date.now().toString(),
-        name: propertyName.trim(),
-        description: propertyDescription.trim() || undefined,
-        address: propertyAddress.trim() || undefined,
-        userId: state.user.id,
-        pricing: {
-          defaultPrice: defaultPrice ? parseFloat(defaultPrice) : undefined,
-          currency: currency,
-          dailyPrices: {}
-        },
-        createdAt: new Date(),
-      };
+      if (state.user.role === 'master') {
+        // Master user - AsyncStorage kullan
+        const newProperty: Property = {
+          id: Date.now().toString(),
+          name: propertyName.trim(),
+          description: propertyDescription.trim() || undefined,
+          address: propertyAddress.trim() || undefined,
+          userId: state.user.id,
+          pricing: {
+            defaultPrice: defaultPrice ? parseFloat(defaultPrice) : undefined,
+            currency: currency,
+            dailyPrices: {}
+          },
+          createdAt: new Date(),
+        };
 
-      console.log('Adding new property:', newProperty);
+        console.log('Adding new property to AsyncStorage:', newProperty);
 
-      const existingPropertiesString = await AsyncStorage.getItem('properties');
-      const existingProperties = existingPropertiesString 
-        ? JSON.parse(existingPropertiesString) 
-        : [];
+        const existingPropertiesString = await AsyncStorage.getItem('properties');
+        const existingProperties = existingPropertiesString 
+          ? JSON.parse(existingPropertiesString) 
+          : [];
 
-      console.log('Existing properties:', existingProperties.length);
+        const updatedProperties = [...existingProperties, newProperty];
+        await AsyncStorage.setItem('properties', JSON.stringify(updatedProperties));
 
-      const updatedProperties = [...existingProperties, newProperty];
-      await AsyncStorage.setItem('properties', JSON.stringify(updatedProperties));
+        setProperties(prev => [...prev, newProperty]);
+      } else {
+        // Firebase user - Firebase'e kaydet
+        const newProperty = {
+          name: propertyName.trim(),
+          description: propertyDescription.trim() || undefined,
+          address: propertyAddress.trim() || undefined,
+          userId: state.user.id,
+          pricing: {
+            defaultPrice: defaultPrice ? parseFloat(defaultPrice) : undefined,
+            currency: currency,
+            dailyPrices: {}
+          },
+          createdAt: new Date(),
+        };
 
-      console.log('Saved properties count:', updatedProperties.length);
+        console.log('Adding new property to Firebase:', newProperty);
+        const propertyId = await firebaseService.addProperty(state.user.id, newProperty);
+        
+        // Local state'i güncelle
+        setProperties(prev => [...prev, { ...newProperty, id: propertyId }]);
+      }
 
-      setProperties(prev => [...prev, newProperty]);
       resetForm();
       setShowAddModal(false);
 

@@ -3,12 +3,13 @@ export interface User {
   username: string; // İşletme adı
   email: string;
   password: string; // Hashlenmiş şifre (gerçek uygulamada)
-  role: 'admin' | 'user' | 'master';
+  role: 'admin' | 'user' | 'master' | 'employee';
   isActive: boolean;
   isPending?: boolean; // Onay bekleyen kullanıcılar için
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
+  businessId?: string; // Firebase business ID
 }
 
 export interface Property {
@@ -17,6 +18,7 @@ export interface Property {
   description?: string;
   address?: string;
   userId: string;
+  businessId?: string; // Firebase business ID
   image?: string;
   isLocked?: boolean;
   isArchived?: boolean;
@@ -51,6 +53,7 @@ export interface Reservation {
   endTime?: string; // HH:MM format
   userId: string;
   propertyId: string;
+  businessId?: string; // Firebase business ID
   subUserId?: string;
   status: 'confirmed' | 'pending' | 'cancelled';
   createdAt: Date;

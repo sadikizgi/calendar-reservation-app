@@ -16,7 +16,12 @@
       "Bash(npx expo:*)",
       "Bash(grep:*)",
       "Bash(rg:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(npm start)",
+      "Bash(pkill:*)",
+      "Bash(npm run typecheck:*)",
+      "Bash(npx tsc:*)",
+      "Bash(find:*)"
     ],
     "deny": []
   }

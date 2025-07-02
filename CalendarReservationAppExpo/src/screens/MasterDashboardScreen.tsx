@@ -9,20 +9,31 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { User } from '../types';
+import { collection, getDocs, query, updateDoc, doc, deleteDoc, deleteField } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import { useAuth } from '../context/AuthContext';
+import firebaseService from '../services/firebaseService';
 import { useLanguage } from '../context/LanguageContext';
+
+interface FirebaseUser {
+  id: string;
+  email: string;
+  businessName?: string;
+  role: 'master' | 'employee';
+  createdAt: any;
+  isApproved?: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
+  isActive?: boolean;
+}
 
 interface MasterDashboardScreenProps {
   navigation: any;
 }
 
 const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigation }) => {
-  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
-  const [approvedUsers, setApprovedUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<FirebaseUser[]>([]);
   const [loading, setLoading] = useState(true);
-  const { logout } = useAuth();
+  const { logout, deleteUser } = useAuth();
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -38,16 +49,16 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
   const loadUsers = async () => {
     try {
       setLoading(true);
-      const usersString = await AsyncStorage.getItem('registeredUsers');
-      const users: User[] = usersString ? JSON.parse(usersString) : [];
       
-      // Filter out master user and separate pending/approved
-      const regularUsers = users.filter(u => u.role !== 'master');
-      const pending = regularUsers.filter(u => u.isPending === true);
-      const approved = regularUsers.filter(u => u.isActive === true && !u.isPending);
+      // Tüm Firebase kullanıcılarını getir
+      const usersQuery = query(collection(db, 'users'));
+      const usersSnapshot = await getDocs(usersQuery);
+      const allUsers = usersSnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      })) as FirebaseUser[];
       
-      setPendingUsers(pending);
-      setApprovedUsers(approved);
+      setUsers(allUsers);
     } catch (error) {
       console.error('Load users error:', error);
       Alert.alert('Hata', 'Kullanıcılar yüklenemedi');
@@ -56,37 +67,36 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
     }
   };
 
-  const approveUser = async (userId: string) => {
-    try {
-      const usersString = await AsyncStorage.getItem('registeredUsers');
-      const users: User[] = usersString ? JSON.parse(usersString) : [];
-      
-      const updatedUsers = users.map(user => {
-        if (user.id === userId) {
-          return {
-            ...user,
-            isActive: true,
-            isPending: false,
-            updatedAt: new Date()
-          };
+  const approveUser = async (userId: string, userEmail: string) => {
+    Alert.alert(
+      'Kullanıcıyı Onayla',
+      `${userEmail} kullanıcısını onaylamak istediğinizden emin misiniz?`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'Onayla', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await firebaseService.approveUser(userId);
+              Alert.alert('Başarılı', 'Kullanıcı onaylandı');
+              loadUsers();
+            } catch (error) {
+              console.error('Approve user error:', error);
+              Alert.alert('Hata', 'Kullanıcı onaylanamadı');
+            } finally {
+              setLoading(false);
+            }
+          }
         }
-        return user;
-      });
-      
-      await AsyncStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-      await loadUsers(); // Refresh the lists
-      
-      Alert.alert('Başarılı', 'Kullanıcı onaylandı');
-    } catch (error) {
-      console.error('Approve user error:', error);
-      Alert.alert('Hata', 'Kullanıcı onaylanamadı');
-    }
+      ]
+    );
   };
 
-  const rejectUser = async (userId: string) => {
+  const rejectUser = async (userId: string, userEmail: string) => {
     Alert.alert(
       'Kullanıcıyı Reddet',
-      'Bu kullanıcının kaydını reddetmek istediğinizden emin misiniz? Bu işlem geri alınamaz.',
+      `${userEmail} kullanıcısını reddetmek istediğinizden emin misiniz? Bu işlem geri alınamaz.`,
       [
         { text: 'İptal', style: 'cancel' },
         { 
@@ -94,18 +104,15 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
           style: 'destructive',
           onPress: async () => {
             try {
-              const usersString = await AsyncStorage.getItem('registeredUsers');
-              const users: User[] = usersString ? JSON.parse(usersString) : [];
-              
-              const updatedUsers = users.filter(user => user.id !== userId);
-              
-              await AsyncStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-              await loadUsers(); // Refresh the lists
-              
-              Alert.alert('Başarılı', 'Kullanıcı reddedildi ve silindi');
+              setLoading(true);
+              await firebaseService.rejectUser(userId);
+              Alert.alert('Başarılı', 'Kullanıcı reddedildi');
+              loadUsers();
             } catch (error) {
               console.error('Reject user error:', error);
               Alert.alert('Hata', 'Kullanıcı reddedilemedi');
+            } finally {
+              setLoading(false);
             }
           }
         }
@@ -113,38 +120,26 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
     );
   };
 
-  const deactivateUser = async (userId: string) => {
+  const unapproveUser = async (userId: string, userEmail: string) => {
     Alert.alert(
-      'Kullanıcıyı Devre Dışı Bırak',
-      'Bu kullanıcının hesabını devre dışı bırakmak istediğinizden emin misiniz?',
+      'Onayı Kaldır',
+      `${userEmail} kullanıcısının onayını kaldırmak istediğinizden emin misiniz? Kullanıcı tekrar pending duruma geçecek.`,
       [
         { text: 'İptal', style: 'cancel' },
         { 
-          text: 'Devre Dışı Bırak', 
+          text: 'Onayı Kaldır', 
           style: 'destructive',
           onPress: async () => {
             try {
-              const usersString = await AsyncStorage.getItem('registeredUsers');
-              const users: User[] = usersString ? JSON.parse(usersString) : [];
-              
-              const updatedUsers = users.map(user => {
-                if (user.id === userId) {
-                  return {
-                    ...user,
-                    isActive: false,
-                    updatedAt: new Date()
-                  };
-                }
-                return user;
-              });
-              
-              await AsyncStorage.setItem('registeredUsers', JSON.stringify(updatedUsers));
-              await loadUsers(); // Refresh the lists
-              
-              Alert.alert('Başarılı', 'Kullanıcı devre dışı bırakıldı');
+              setLoading(true);
+              await firebaseService.unapproveUser(userId);
+              Alert.alert('Başarılı', 'Kullanıcının onayı kaldırıldı');
+              loadUsers();
             } catch (error) {
-              console.error('Deactivate user error:', error);
-              Alert.alert('Hata', 'Kullanıcı devre dışı bırakılamadı');
+              console.error('Unapprove user error:', error);
+              Alert.alert('Hata', 'Onay kaldırılamadı');
+            } finally {
+              setLoading(false);
             }
           }
         }
@@ -152,53 +147,100 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
     );
   };
 
-  const renderPendingUser = ({ item }: { item: User }) => (
-    <View style={styles.userCard}>
-      <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.username}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
-        <Text style={styles.userDate}>
-          Kayıt Tarihi: {new Date(item.createdAt).toLocaleDateString('tr-TR')}
-        </Text>
-      </View>
-      <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.approveButton}
-          onPress={() => approveUser(item.id)}
-        >
-          <Text style={styles.approveButtonText}>Onayla</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.rejectButton}
-          onPress={() => rejectUser(item.id)}
-        >
-          <Text style={styles.rejectButtonText}>Reddet</Text>
-        </TouchableOpacity>
-      </View>
-    </View>
-  );
+  const deleteUserCompletely = async (userId: string, userEmail: string) => {
+    Alert.alert(
+      'Kullanıcıyı Sil',
+      `${userEmail} kullanıcısını ve tüm verilerini kalıcı olarak silmek istediğinizden emin misiniz? Bu işlem GERİ ALINAMAZ.`,
+      [
+        { text: 'İptal', style: 'cancel' },
+        { 
+          text: 'SİL', 
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await deleteUser(userId);
+              Alert.alert('Başarılı', 'Kullanıcı ve tüm verileri kalıcı olarak silindi');
+              loadUsers();
+            } catch (error) {
+              console.error('Delete user error:', error);
+              Alert.alert('Hata', 'Kullanıcı silinemedi');
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
 
-  const renderApprovedUser = ({ item }: { item: User }) => (
+  const getPendingUsers = () => {
+    return users.filter(u => u.status === 'pending' || (!u.isApproved || u.isApproved === false));
+  };
+
+  const getApprovedUsers = () => {
+    return users.filter(u => u.isApproved === true);
+  };
+
+  const renderUser = ({ item, isPending }: { item: FirebaseUser, isPending: boolean }) => (
     <View style={styles.userCard}>
       <View style={styles.userInfo}>
-        <Text style={styles.userName}>{item.username}</Text>
-        <Text style={styles.userEmail}>{item.email}</Text>
-        <Text style={styles.userDate}>
-          Kayıt: {new Date(item.createdAt).toLocaleDateString('tr-TR')}
-        </Text>
-        {item.lastLoginAt && (
-          <Text style={styles.userDate}>
-            Son Giriş: {new Date(item.lastLoginAt).toLocaleDateString('tr-TR')}
-          </Text>
+        <Text style={styles.userName}>{item.email}</Text>
+        {item.businessName && (
+          <Text style={styles.businessName}>İşletme: {item.businessName}</Text>
         )}
+        <Text style={styles.userDate}>
+          Kayıt: {item.createdAt?.toDate?.()?.toLocaleDateString('tr-TR') || 'Bilinmiyor'}
+        </Text>
       </View>
       <View style={styles.actionButtons}>
-        <TouchableOpacity
-          style={styles.deactivateButton}
-          onPress={() => deactivateUser(item.id)}
-        >
-          <Text style={styles.deactivateButtonText}>Devre Dışı</Text>
-        </TouchableOpacity>
+        {isPending ? (
+          <View style={styles.pendingActions}>
+            <View style={styles.pendingButtonsRow}>
+              <TouchableOpacity
+                style={styles.approveButton}
+                onPress={() => approveUser(item.id, item.email)}
+                disabled={loading}
+              >
+                <Text style={styles.approveButtonText}>Onayla</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.rejectButton}
+                onPress={() => rejectUser(item.id, item.email)}
+                disabled={loading}
+              >
+                <Text style={styles.rejectButtonText}>Reddet</Text>
+              </TouchableOpacity>
+            </View>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => deleteUserCompletely(item.id, item.email)}
+              disabled={loading}
+            >
+              <Text style={styles.deleteButtonText}>Sil</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          <View style={styles.approvedActions}>
+            <View style={styles.approvedBadge}>
+              <Text style={styles.approvedText}>Onaylandı</Text>
+            </View>
+            <TouchableOpacity
+              style={styles.unapproveButton}
+              onPress={() => unapproveUser(item.id, item.email)}
+              disabled={loading}
+            >
+              <Text style={styles.unapproveButtonText}>Onayı Kaldır</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.deleteButton}
+              onPress={() => deleteUserCompletely(item.id, item.email)}
+              disabled={loading}
+            >
+              <Text style={styles.deleteButtonText}>Sil</Text>
+            </TouchableOpacity>
+          </View>
+        )}
       </View>
     </View>
   );
@@ -211,6 +253,9 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
       </View>
     );
   }
+
+  const pendingUsers = getPendingUsers();
+  const approvedUsers = getApprovedUsers();
 
   return (
     <View style={styles.container}>
@@ -228,7 +273,11 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
         </View>
         <View style={styles.statCard}>
           <Text style={styles.statNumber}>{approvedUsers.length}</Text>
-          <Text style={styles.statLabel}>Aktif Kullanıcı</Text>
+          <Text style={styles.statLabel}>Onaylanmış</Text>
+        </View>
+        <View style={styles.statCard}>
+          <Text style={styles.statNumber}>{users.length}</Text>
+          <Text style={styles.statLabel}>Toplam</Text>
         </View>
       </View>
 
@@ -238,7 +287,7 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
             <Text style={styles.sectionTitle}>Onay Bekleyen Kullanıcılar</Text>
             <FlatList
               data={pendingUsers}
-              renderItem={renderPendingUser}
+              renderItem={({ item }) => renderUser({ item, isPending: true })}
               keyExtractor={item => item.id}
               style={styles.usersList}
               showsVerticalScrollIndicator={false}
@@ -250,7 +299,7 @@ const MasterDashboardScreen: React.FC<MasterDashboardScreenProps> = ({ navigatio
           <Text style={styles.sectionTitle}>Onaylanmış Kullanıcılar</Text>
           <FlatList
             data={approvedUsers}
-            renderItem={renderApprovedUser}
+            renderItem={({ item }) => renderUser({ item, isPending: false })}
             keyExtractor={item => item.id}
             style={styles.usersList}
             showsVerticalScrollIndicator={false}
@@ -365,7 +414,7 @@ const styles = StyleSheet.create({
     color: '#333',
     marginBottom: 2,
   },
-  userEmail: {
+  businessName: {
     fontSize: 14,
     color: '#666',
     marginBottom: 2,
@@ -375,7 +424,14 @@ const styles = StyleSheet.create({
     color: '#999',
   },
   actionButtons: {
+    alignItems: 'flex-end',
+  },
+  pendingActions: {
+    alignItems: 'flex-end',
+  },
+  pendingButtonsRow: {
     flexDirection: 'row',
+    marginBottom: 4,
   },
   approveButton: {
     backgroundColor: '#00B383',
@@ -400,15 +456,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: 'bold',
   },
-  deactivateButton: {
-    backgroundColor: '#FF9500',
+  approvedActions: {
+    alignItems: 'flex-end',
+  },
+  approvedBadge: {
+    backgroundColor: '#4ECDC4',
     paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 15,
+    marginBottom: 8,
+  },
+  approvedText: {
+    color: '#FFF',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  unapproveButton: {
+    backgroundColor: '#FF6B6B',
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
   },
-  deactivateButtonText: {
+  unapproveButtonText: {
     color: '#FFF',
-    fontSize: 12,
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  deleteButton: {
+    backgroundColor: '#DC3545',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6,
+    marginTop: 2,
+  },
+  deleteButtonText: {
+    color: '#FFF',
+    fontSize: 11,
     fontWeight: 'bold',
   },
   emptyContainer: {
