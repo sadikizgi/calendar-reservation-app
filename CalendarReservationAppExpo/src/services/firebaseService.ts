@@ -97,7 +97,9 @@ class FirebaseService {
         userProfile.status = 'pending';
       }
       
-      console.log('FirebaseService: Saving user profile to Firestore:', userProfile);
+      console.log('🚨🚨🚨 CRITICAL WRITE: signUpSimple - setDoc called for:', user.uid);
+      console.log('🚨🚨🚨 CRITICAL WRITE: signUpSimple - Data being written:', userProfile);
+      console.error('🚨🚨🚨 CRITICAL WRITE: signUpSimple - STACK TRACE:', new Error().stack);
       await setDoc(doc(db, 'users', user.uid), userProfile);
       console.log('FirebaseService: User profile saved successfully');
 
@@ -149,6 +151,9 @@ class FirebaseService {
             createdAt: new Date()
           };
           
+          console.log('🚨🚨🚨 CRITICAL WRITE: signIn - setDoc called for master profile:', user.uid);
+          console.log('🚨🚨🚨 CRITICAL WRITE: signIn - Data being written:', masterProfile);
+          console.error('🚨🚨🚨 CRITICAL WRITE: signIn - STACK TRACE:', new Error().stack);
           await setDoc(doc(db, 'users', user.uid), masterProfile);
           console.log('✅ FirebaseService: Master profile created during login');
           
@@ -213,8 +218,14 @@ class FirebaseService {
       });
       return userProfile;
     } catch (error: any) {
-      console.log('❌ FirebaseService: SignIn error:', error.message);
-      throw new Error(error.message);
+      // Firebase auth hatalarını gizle, sadece genel hata mesajı göster
+      if (error.code === 'auth/invalid-email' || error.code === 'auth/invalid-credential') {
+        console.log('FirebaseService: Silent auth error (invalid credentials)');
+        throw new Error('Geçersiz email veya şifre');
+      } else {
+        console.log('❌ FirebaseService: SignIn error:', error.message);
+        throw new Error(error.message);
+      }
     }
   }
 
@@ -240,7 +251,9 @@ class FirebaseService {
         createdAt: new Date()
       };
       
-      console.log('FirebaseService: Saving master profile for UID:', currentUser.uid);
+      console.log('🚨🚨🚨 CRITICAL WRITE: createMasterProfile - setDoc called for:', currentUser.uid);
+      console.log('🚨🚨🚨 CRITICAL WRITE: createMasterProfile - Data being written:', masterProfile);
+      console.error('🚨🚨🚨 CRITICAL WRITE: createMasterProfile - STACK TRACE:', new Error().stack);
       await setDoc(doc(db, 'users', currentUser.uid), masterProfile);
       console.log('FirebaseService: Master profile created successfully');
     } catch (error) {
@@ -339,7 +352,9 @@ class FirebaseService {
         // status alanını hariç tut
         delete updateData.status;
         
-        console.log('FirebaseService: Using setDoc for master approval');
+        console.log('🚨🚨🚨 CRITICAL WRITE: approveUser - setDoc called for master approval:', userId);
+        console.log('🚨🚨🚨 CRITICAL WRITE: approveUser - Data being written:', updateData);
+        console.error('🚨🚨🚨 CRITICAL WRITE: approveUser - STACK TRACE:', new Error().stack);
         await setDoc(userRef, updateData);
         console.log('FirebaseService: setDoc completed');
       } else {
@@ -352,8 +367,9 @@ class FirebaseService {
           approvedAt: new Date()
         };
         
-        console.log('🔵 FirebaseService: Using updateDoc for authenticated user');
-        console.log('🔵 FirebaseService: UpdateData:', updateData);
+        console.log('🚨🚨🚨 CRITICAL WRITE: approveUser - updateDoc called for authenticated user:', userId);
+        console.log('🚨🚨🚨 CRITICAL WRITE: approveUser - Data being written:', updateData);
+        console.error('🚨🚨🚨 CRITICAL WRITE: approveUser - STACK TRACE:', new Error().stack);
         await updateDoc(userRef, updateData);
         console.log('✅ FirebaseService: updateDoc completed successfully');
       }
@@ -413,13 +429,17 @@ class FirebaseService {
   }
 
   async rejectUser(userId: string): Promise<void> {
+    console.log('🚨🚨🚨 CRITICAL WRITE: rejectUser - updateDoc called for:', userId);
+    console.log('🚨🚨🚨 CRITICAL WRITE: rejectUser - Data being written:', { status: 'rejected' });
+    console.error('🚨🚨🚨 CRITICAL WRITE: rejectUser - STACK TRACE:', new Error().stack);
     await updateDoc(doc(db, 'users', userId), {
       status: 'rejected'
     });
   }
 
   async unapproveUser(userId: string): Promise<void> {
-    console.log('FirebaseService: Unapproving user:', userId);
+    console.log('🚨🚨🚨 CRITICAL: unapproveUser called for:', userId);
+    console.error('🚨🚨🚨 STACK TRACE:', new Error().stack);
     try {
       const userRef = doc(db, 'users', userId);
       
@@ -442,7 +462,9 @@ class FirebaseService {
         unapprovedAt: new Date()
       };
       
-      console.log('FirebaseService: Unapproving user with data:', updateData);
+      console.log('🚨🚨🚨 CRITICAL WRITE: unapproveUser - updateDoc called for:', userId);
+      console.log('🚨🚨🚨 CRITICAL WRITE: unapproveUser - Data being written:', updateData);
+      console.error('🚨🚨🚨 CRITICAL WRITE: unapproveUser - STACK TRACE:', new Error().stack);
       await updateDoc(userRef, updateData);
       console.log('FirebaseService: User unapproval completed');
       
@@ -592,10 +614,14 @@ class FirebaseService {
       console.log('FirebaseService: User document before toggle:', beforeDoc.data());
       
       // Güncelleme işlemi
-      await updateDoc(userRef, {
+      const toggleData = {
         isActive: isActive,
         updatedAt: new Date()
-      });
+      };
+      console.log('🚨🚨🚨 CRITICAL WRITE: toggleUserActive - updateDoc called for:', userId);
+      console.log('🚨🚨🚨 CRITICAL WRITE: toggleUserActive - Data being written:', toggleData);
+      console.error('🚨🚨🚨 CRITICAL WRITE: toggleUserActive - STACK TRACE:', new Error().stack);
+      await updateDoc(userRef, toggleData);
       console.log('FirebaseService: updateDoc completed for toggle');
       
       // Güncelleme sonrası kontrol et
@@ -778,13 +804,20 @@ class FirebaseService {
       addedAt: new Date()
     };
 
+    console.log('🚨🚨🚨 CRITICAL WRITE: addEmployee - setDoc called for member:', userData.id);
+    console.log('🚨🚨🚨 CRITICAL WRITE: addEmployee - Member data being written:', memberData);
+    console.error('🚨🚨🚨 CRITICAL WRITE: addEmployee - STACK TRACE:', new Error().stack);
     await setDoc(doc(db, 'businessMembers', userData.id), memberData);
     
     // User profile'ını güncelle
-    await updateDoc(doc(db, 'users', userData.id), {
+    const userUpdateData = {
       businessId: businessId,
       role: 'employee'
-    });
+    };
+    console.log('🚨🚨🚨 CRITICAL WRITE: addEmployee - updateDoc called for user:', userData.id);
+    console.log('🚨🚨🚨 CRITICAL WRITE: addEmployee - User update data being written:', userUpdateData);
+    console.error('🚨🚨🚨 CRITICAL WRITE: addEmployee - STACK TRACE:', new Error().stack);
+    await updateDoc(doc(db, 'users', userData.id), userUpdateData);
   }
 
   // Properties - User ID bazlı basit sistem
@@ -811,6 +844,9 @@ class FirebaseService {
   }
 
   async updateProperty(propertyId: string, updates: Partial<Property>): Promise<void> {
+    console.log('🚨🚨🚨 CRITICAL WRITE: updateProperty - updateDoc called for property:', propertyId);
+    console.log('🚨🚨🚨 CRITICAL WRITE: updateProperty - Updates being written:', updates);
+    console.error('🚨🚨🚨 CRITICAL WRITE: updateProperty - STACK TRACE:', new Error().stack);
     await updateDoc(doc(db, 'properties', propertyId), updates);
   }
 
@@ -858,6 +894,9 @@ class FirebaseService {
   }
 
   async updateReservation(reservationId: string, updates: Partial<Reservation>): Promise<void> {
+    console.log('🚨🚨🚨 CRITICAL WRITE: updateReservation - updateDoc called for reservation:', reservationId);
+    console.log('🚨🚨🚨 CRITICAL WRITE: updateReservation - Updates being written:', updates);
+    console.error('🚨🚨🚨 CRITICAL WRITE: updateReservation - STACK TRACE:', new Error().stack);
     await updateDoc(doc(db, 'reservations', reservationId), updates);
   }
 

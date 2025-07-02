@@ -261,37 +261,40 @@ const AddReservationScreen: React.FC<AddReservationScreenProps> = ({ navigation,
 
         <View style={styles.timeSection}>
           <View style={styles.switchContainer}>
-            <Text style={styles.switchLabel}>Saat Belirle</Text>
+            <Text style={styles.switchLabel}>Hatırlatıcı Belirle</Text>
             <Switch
               value={useTime}
-              onValueChange={setUseTime}
+              onValueChange={() => {
+                Alert.alert('Geliştirme Aşamasında', 'Bu özellik şu anda geliştirme aşamasında');
+              }}
               trackColor={{ false: '#767577', true: '#81b0ff' }}
               thumbColor={useTime ? '#007AFF' : '#f4f3f4'}
+              disabled={true}
             />
           </View>
 
-          {useTime && (
-            <View style={styles.timeInputs}>
-              <TextInput
-                style={[styles.input, styles.timeInput]}
-                placeholder="Başlangıç (HH:MM)"
-                value={startTime}
-                onChangeText={setStartTime}
-                keyboardType="numeric"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-              <TextInput
-                style={[styles.input, styles.timeInput]}
-                placeholder="Bitiş (HH:MM)"
-                value={endTime}
-                onChangeText={setEndTime}
-                keyboardType="numeric"
-                autoCorrect={false}
-                autoCapitalize="none"
-              />
-            </View>
-          )}
+          <View style={styles.reminderOptions}>
+            <TouchableOpacity 
+              style={[styles.reminderItem, styles.reminderItemDisabled]}
+              onPress={() => Alert.alert('Geliştirme Aşamasında', 'Bu özellik şu anda geliştirme aşamasında')}
+            >
+              <Text style={styles.reminderText}>1 Gün</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reminderItem, styles.reminderItemDisabled]}
+              onPress={() => Alert.alert('Geliştirme Aşamasında', 'Bu özellik şu anda geliştirme aşamasında')}
+            >
+              <Text style={styles.reminderText}>2 Gün</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              style={[styles.reminderItem, styles.reminderItemDisabled]}
+              onPress={() => Alert.alert('Geliştirme Aşamasında', 'Bu özellik şu anda geliştirme aşamasında')}
+            >
+              <Text style={styles.reminderText}>3 Gün</Text>
+            </TouchableOpacity>
+          </View>
+          
+          <Text style={styles.developmentNote}>* Geliştirme aşamasında</Text>
         </View>
 
         {subUsers.length > 0 && (
@@ -396,6 +399,37 @@ const styles = StyleSheet.create({
   },
   timeInput: {
     flex: 0.48,
+  },
+  reminderOptions: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    marginTop: 10,
+    marginBottom: 5,
+  },
+  reminderItem: {
+    padding: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E0E0E0',
+    backgroundColor: '#F8F9FA',
+    minWidth: 60,
+    alignItems: 'center',
+  },
+  reminderItemDisabled: {
+    backgroundColor: '#F0F0F0',
+    borderColor: '#D0D0D0',
+    opacity: 0.6,
+  },
+  reminderText: {
+    fontSize: 14,
+    color: '#666',
+  },
+  developmentNote: {
+    fontSize: 12,
+    color: '#999',
+    fontStyle: 'italic',
+    textAlign: 'center',
+    marginTop: 5,
   },
   subUserSection: {
     marginBottom: 20,

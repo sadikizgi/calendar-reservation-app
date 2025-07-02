@@ -180,7 +180,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             await firebaseService.signUpSimple('master@system.local', '805046800', 'Master System');
             console.log('Master account created successfully');
           } catch (createError: any) {
-            console.log('Master account creation failed (probably already exists):', createError.message);
+            console.log('Master account creation failed (probably already exists) - silently continuing');
           }
           
           // Tekrar giriş yapmayı dene - şimdi profil de oluşturulmuş olmalı
@@ -215,22 +215,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const userProfile = await firebaseService.signIn(email, password);
       console.log('Firebase login successful, got user profile:', userProfile);
       
-      // Kullanıcıyı manuel olarak set et (onAuthStateChanged'ı beklemeyelim)
-      const user: User = {
-        id: userProfile.id,
-        username: userProfile.businessName || userProfile.email,
-        email: userProfile.email,
-        password: '',
-        role: userProfile.role === 'master' ? 'master' : 'admin',
-        isActive: (userProfile.isApproved === true || userProfile.status !== 'pending') && (userProfile.isActive === undefined || userProfile.isActive === true),
-        businessId: userProfile.id,
-        createdAt: userProfile.createdAt,
-        updatedAt: new Date(),
-        lastLoginAt: new Date()
-      };
-      
-      console.log('Setting user manually after login:', user);
-      dispatch({ type: 'SET_USER', payload: user });
+      // onAuthStateChanged listener'ın user'ı set etmesini bekle
+      console.log('Login successful, onAuthStateChanged will handle user state');
       return true;
     } catch (error: any) {
       console.error('Login error:', error);
